@@ -52,6 +52,11 @@ decompiled, and the core library has no external dependencies at all.
 
 ---
 
+## Screenshots
+<img width="1745" height="890" alt="QC1xQzeO5z" src="https://github.com/user-attachments/assets/0961874a-8312-4dba-a661-6c62bc73eeb8" />
+
+---
+
 ## Requirements and build
 
 - Windows
@@ -616,7 +621,7 @@ A phase-by-phase build history is in
 
 ## Licence
 
-No licence file is included — add one before publishing.
+This project is licensed under the MIT License. See the [`LICENSE`](./LICENSE) file in the root of the repository for details.
 
 `TreeGrid.Wpf.Export` depends on ClosedXML (MIT) and QuestPDF, whose Community
 licence carries revenue-based eligibility terms. Check that QuestPDF's terms fit your
