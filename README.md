@@ -52,6 +52,11 @@ decompiled, and the core library has no external dependencies at all.
 
 ---
 
+## Screenshots
+<img width="1745" height="890" alt="QC1xQzeO5z" src="https://github.com/user-attachments/assets/0961874a-8312-4dba-a661-6c62bc73eeb8" />
+
+---
+
 ## Requirements and build
 
 - Windows
