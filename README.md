@@ -26,7 +26,6 @@ decompiled, and the core library has no external dependencies at all.
 
 ## Contents
 
-- [Screenshots](#screenshots)
 - [Requirements and build](#requirements-and-build)
 - [Projects](#projects)
 - [Quick start](#quick-start)
@@ -50,21 +49,6 @@ decompiled, and the core library has no external dependencies at all.
 - [Events reference](#events-reference)
 - [Known limitations](#known-limitations)
 - [Licence](#licence)
-
----
-
-## Screenshots
-
-> **Not captured yet.** Run the demo
-> (`dotnet run --project samples/TreeGrid.Demo`), save the shots below into
-> `docs/screenshots/`, and they will render here.
-> [`docs/screenshots/README.md`](docs/screenshots/README.md) has the checklist.
-
-| | |
-|---|---|
-| ![Feature explorer](docs/screenshots/feature-explorer.png)<br>**Feature explorer** — the demo and its live feature sidebar | ![Filtering](docs/screenshots/filtering.png)<br>**Excel-style filter** — value checklist plus condition filters |
-| ![Editing](docs/screenshots/editing.png)<br>**Editing and validation** — typed editors, error adorners | ![Frozen and stacked](docs/screenshots/frozen-stacked.png)<br>**Frozen panes and stacked headers** |
-| ![Drag and drop](docs/screenshots/drag-drop.png)<br>**Row drag and drop** — indented drop indicator | ![Dark theme](docs/screenshots/dark-theme.png)<br>**Dark theme** — brush-only dictionary swap |
 
 ---
 
