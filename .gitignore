@@ -1,0 +1,12 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/samples/TreeGrid.Demo/bin/Debug/net8.0-windows
+/samples/TreeGrid.Demo/obj
+/src/TreeGrid.Wpf/bin/Debug/net8.0-windows
+/src/TreeGrid.Wpf/obj/Debug/net8.0-windows
+/src/TreeGrid.Wpf/obj
+/src/TreeGrid.Wpf.Export/bin/Debug/net8.0-windows
+/src/TreeGrid.Wpf.Export/obj/Debug/net8.0-windows
+/src/TreeGrid.Wpf.Export/obj
