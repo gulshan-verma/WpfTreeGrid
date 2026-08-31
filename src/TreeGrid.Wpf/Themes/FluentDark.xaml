@@ -1,0 +1,32 @@
+<!--
+    Dark theme. Merge this after the control's Generic.xaml:
+
+        <ResourceDictionary Source="pack://application:,,,/TreeGrid.Wpf;component/Themes/FluentDark.xaml" />
+
+    Only brushes are overridden; every template keys off these, so no control
+    template needs duplicating for a new theme.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="TreeGrid.Background" Color="#0D1117" />
+    <SolidColorBrush x:Key="TreeGrid.BorderBrush" Color="#30363D" />
+    <SolidColorBrush x:Key="TreeGrid.GridLineBrush" Color="#21262D" />
+    <SolidColorBrush x:Key="TreeGrid.HeaderBackground" Color="#161B22" />
+    <SolidColorBrush x:Key="TreeGrid.HeaderForeground" Color="#E6EDF3" />
+    <SolidColorBrush x:Key="TreeGrid.CellForeground" Color="#C9D1D9" />
+    <SolidColorBrush x:Key="TreeGrid.AlternatingRowBackground" Color="#11161C" />
+    <SolidColorBrush x:Key="TreeGrid.SelectedRowBackground" Color="#1F3A5F" />
+    <SolidColorBrush x:Key="TreeGrid.ExpanderGlyph" Color="#8B949E" />
+    <SolidColorBrush x:Key="TreeGrid.CurrentCellBorder" Color="#58A6FF" />
+    <SolidColorBrush x:Key="TreeGrid.DropIndicator" Color="#58A6FF" />
+    <SolidColorBrush x:Key="TreeGrid.GripperHover" Color="#484F58" />
+    <SolidColorBrush x:Key="TreeGrid.FilterGlyph" Color="#6E7681" />
+    <SolidColorBrush x:Key="TreeGrid.FilterGlyphActive" Color="#58A6FF" />
+    <SolidColorBrush x:Key="TreeGrid.PopupBackground" Color="#161B22" />
+    <SolidColorBrush x:Key="TreeGrid.SortBadgeBackground" Color="#1F3A5F" />
+    <SolidColorBrush x:Key="TreeGrid.ErrorBrush" Color="#F85149" />
+    <SolidColorBrush x:Key="TreeGrid.EditorBackground" Color="#0D1117" />
+    <SolidColorBrush x:Key="TreeGrid.FrozenLine" Color="#484F58" />
+
+</ResourceDictionary>

@@ -1,0 +1,202 @@
+<Window x:Class="TreeGrid.Demo.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:tg="clr-namespace:TreeGrid.Wpf;assembly=TreeGrid.Wpf"
+        xmlns:cols="clr-namespace:TreeGrid.Wpf.Columns;assembly=TreeGrid.Wpf"
+        xmlns:headers="clr-namespace:TreeGrid.Wpf.Headers;assembly=TreeGrid.Wpf"
+        Title="TreeGrid - Feature Explorer"
+        Height="760"
+        Width="1420"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource TreeGrid.Background}">
+
+    <Window.Resources>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,12,0,4" />
+            <Setter Property="Foreground" Value="{DynamicResource TreeGrid.ExpanderGlyph}" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,3,0,3" />
+            <Setter Property="Foreground" Value="{DynamicResource TreeGrid.CellForeground}" />
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,6,0,2" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource TreeGrid.CellForeground}" />
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TreeGrid.CellForeground}" />
+        </Style>
+        <Style TargetType="CheckBox" x:Key="ThemedCheck">
+            <Setter Property="Foreground" Value="{DynamicResource TreeGrid.CellForeground}" />
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,0,0,2" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="248" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ================================================ Feature sidebar -->
+        <Border Grid.Column="0"
+                BorderBrush="{DynamicResource TreeGrid.BorderBrush}"
+                BorderThickness="1"
+                Background="{DynamicResource TreeGrid.HeaderBackground}"
+                Padding="10"
+                Margin="0,0,8,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="FEATURES" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="Every toggle applies live to the grid on the right."
+                               TextWrapping="Wrap" FontSize="10"
+                               Foreground="{DynamicResource TreeGrid.ExpanderGlyph}" Margin="0,2,0,0" />
+
+                    <TextBlock Text="SELECTION" Style="{StaticResource SectionHeader}" />
+                    <TextBlock Text="Mode" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding SelectionModes}"
+                              SelectedItem="{Binding ElementName=Grid, Path=SelectionMode, Mode=TwoWay}" />
+                    <TextBlock Text="Unit" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding SelectionUnits}"
+                              SelectedItem="{Binding ElementName=Grid, Path=SelectionUnit, Mode=TwoWay}" />
+                    <CheckBox Content="Checkbox selection"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowCheckBoxSelection, Mode=TwoWay}" />
+                    <TextBlock Text="Cascade" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding CascadeModes}"
+                              SelectedItem="{Binding ElementName=Grid, Path=CheckBoxCascadeMode, Mode=TwoWay}" />
+
+                    <TextBlock Text="SORT AND FILTER" Style="{StaticResource SectionHeader}" />
+                    <CheckBox Content="Allow sorting"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowSorting, Mode=TwoWay}" />
+                    <CheckBox Content="Allow multi-sort (Ctrl+click)"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowMultiSort, Mode=TwoWay}" />
+                    <CheckBox Content="Show sort order badges"
+                              IsChecked="{Binding ElementName=Grid, Path=ShowSortNumbers, Mode=TwoWay}" />
+                    <CheckBox Content="Allow filtering"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowFiltering, Mode=TwoWay}" />
+                    <TextBlock Text="Filter node mode" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding FilterNodeModes}"
+                              SelectedItem="{Binding ElementName=Grid, Path=FilterNodeMode, Mode=TwoWay}" />
+                    <CheckBox Content="Expand nodes on filtering"
+                              IsChecked="{Binding ElementName=Grid, Path=ExpandNodesOnFiltering, Mode=TwoWay}" />
+
+                    <TextBlock Text="EDITING" Style="{StaticResource SectionHeader}" />
+                    <CheckBox Content="Allow editing"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowEditing, Mode=TwoWay}" />
+                    <TextBlock Text="Edit trigger" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding EditTriggers}"
+                              SelectedItem="{Binding ElementName=Grid, Path=EditTrigger, Mode=TwoWay}" />
+                    <TextBlock Text="Validation mode" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding ValidationModes}"
+                              SelectedItem="{Binding ElementName=Grid, Path=ValidationMode, Mode=TwoWay}" />
+
+                    <TextBlock Text="COLUMNS" Style="{StaticResource SectionHeader}" />
+                    <CheckBox Content="Allow resizing"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowColumnResizing, Mode=TwoWay}" />
+                    <CheckBox Content="Allow reordering"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowColumnReordering, Mode=TwoWay}" />
+                    <CheckBox Content="Column virtualization"
+                              IsChecked="{Binding ElementName=Grid, Path=EnableColumnVirtualization, Mode=TwoWay}" />
+                    <TextBlock Text="Frozen columns (left)" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding FreezeCounts}"
+                              SelectedItem="{Binding ElementName=Grid, Path=FrozenColumnCount, Mode=TwoWay}" />
+                    <TextBlock Text="Frozen columns (right)" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding FreezeCounts}"
+                              SelectedItem="{Binding ElementName=Grid, Path=FooterColumnCount, Mode=TwoWay}" />
+                    <Button Content="Restore hidden columns" Margin="0,6,0,0" Padding="6,3"
+                            Click="OnRestoreColumns" />
+
+                    <TextBlock Text="LAYOUT" Style="{StaticResource SectionHeader}" />
+                    <CheckBox Content="Stacked headers" x:Name="StackedHeaderBox"
+                              Checked="OnStackedHeadersChanged" Unchecked="OnStackedHeadersChanged" />
+                    <CheckBox Content="Alternating rows"
+                              IsChecked="{Binding ElementName=Grid, Path=ShowAlternatingRows, Mode=TwoWay}" />
+                    <CheckBox Content="Right-to-left" x:Name="RtlBox"
+                              Checked="OnRtlChanged" Unchecked="OnRtlChanged" />
+                    <CheckBox Content="Dark theme" x:Name="DarkThemeBox"
+                              Checked="OnThemeChanged" Unchecked="OnThemeChanged" />
+
+                    <TextBlock Text="INTERACTION" Style="{StaticResource SectionHeader}" />
+                    <CheckBox Content="Row drag and drop"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowRowDragDrop, Mode=TwoWay}" />
+                    <CheckBox Content="Default context menus"
+                              IsChecked="{Binding ElementName=Grid, Path=ShowDefaultContextMenus, Mode=TwoWay}" />
+                    <CheckBox Content="Allow copy (Ctrl+C)"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowCopy, Mode=TwoWay}" />
+                    <CheckBox Content="Allow paste (Ctrl+V)"
+                              IsChecked="{Binding ElementName=Grid, Path=AllowPaste, Mode=TwoWay}" />
+
+                    <TextBlock Text="ACTIONS" Style="{StaticResource SectionHeader}" />
+                    <UniformGrid Columns="2">
+                        <Button Content="Expand all" Margin="0,0,3,3" Padding="4,3" Click="OnExpandAll" />
+                        <Button Content="Collapse all" Margin="3,0,0,3" Padding="4,3" Click="OnCollapseAll" />
+                        <Button Content="Auto-fit" Margin="0,0,3,3" Padding="4,3" Click="OnAutoFit" />
+                        <Button Content="Clear sort" Margin="3,0,0,3" Padding="4,3" Click="OnClearSort" />
+                        <Button Content="Clear filters" Margin="0,0,3,3" Padding="4,3" Click="OnClearFilters" />
+                        <Button Content="Select all" Margin="3,0,0,3" Padding="4,3" Click="OnSelectAll" />
+                        <Button Content="Export" Margin="0,0,3,0" Padding="4,3" Click="OnExport" />
+                        <Button Content="Benchmark" Margin="3,0,0,0" Padding="4,3" Click="OnBenchmark" />
+                    </UniformGrid>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- ==================================================== Grid surface -->
+        <DockPanel Grid.Column="1">
+            <Border DockPanel.Dock="Top" Padding="0,0,0,8">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Data source:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <ComboBox x:Name="SourceBox" Width="180" SelectionChanged="OnSourceChanged">
+                        <ComboBoxItem Content="Hierarchical" IsSelected="True" />
+                        <ComboBoxItem Content="Self-relational (5,000)" />
+                        <ComboBoxItem Content="Load on demand (async)" />
+                    </ComboBox>
+
+                    <TextBlock VerticalAlignment="Center" Margin="16,0,0,0"
+                               Text="{Binding ElementName=Grid, Path=View.Count, StringFormat='Rows: {0}'}" />
+                    <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
+                               Text="{Binding ElementName=Grid, Path=SelectedItems.Count, StringFormat='Selected: {0}'}" />
+                    <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
+                               Text="{Binding ElementName=Grid, Path=CheckedItems.Count, StringFormat='Checked: {0}'}" />
+                    <TextBlock x:Name="StatusText" VerticalAlignment="Center" Margin="12,0,0,0"
+                               Foreground="{DynamicResource TreeGrid.ExpanderGlyph}" />
+                </StackPanel>
+            </Border>
+
+            <tg:TreeGridControl x:Name="Grid"
+                                AutoGenerateColumns="False"
+                                ShowAlternatingRows="True"
+                                AllowCheckBoxSelection="True"
+                                AllowSorting="True"
+                                AllowMultiSort="True"
+                                AllowFiltering="True"
+                                AllowEditing="True"
+                                EditTrigger="OnDoubleTap"
+                                ValidationMode="CellAndRow"
+                                AllowColumnResizing="True"
+                                AllowColumnReordering="True"
+                                AllowRowDragDrop="True"
+                                AllowCopy="True"
+                                AllowPaste="True"
+                                ShowDefaultContextMenus="True"
+                                FrozenColumnCount="1">
+                <tg:TreeGridControl.Columns>
+                    <cols:TreeGridTextColumn MappingName="FirstName" HeaderText="First Name" Width="220" />
+                    <cols:TreeGridTextColumn MappingName="LastName" HeaderText="Last Name" Width="130" />
+                    <cols:TreeGridComboBoxColumn x:Name="TitleColumn" MappingName="Title"
+                                                 HeaderText="Title" Width="150" />
+                    <cols:TreeGridNumericColumn MappingName="Salary" HeaderText="Salary"
+                                                Width="110" NumberDecimalDigits="0" />
+                    <cols:TreeGridCheckBoxColumn MappingName="Available" HeaderText="Available" Width="90" />
+                    <cols:TreeGridProgressBarColumn MappingName="Completion" HeaderText="Completion" Width="130" />
+                    <cols:TreeGridHyperlinkColumn MappingName="ProfileUrl" HeaderText="Profile" Width="170" />
+                </tg:TreeGridControl.Columns>
+            </tg:TreeGridControl>
+        </DockPanel>
+    </Grid>
+</Window>

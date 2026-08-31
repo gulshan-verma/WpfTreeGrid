@@ -1,0 +1,497 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:tg="clr-namespace:TreeGrid.Wpf"
+                    xmlns:view="clr-namespace:TreeGrid.Wpf.View"
+                    xmlns:filter="clr-namespace:TreeGrid.Wpf.Filtering">
+
+    <!-- Theme brushes. Swap this dictionary to reskin the control. -->
+    <SolidColorBrush x:Key="TreeGrid.Background" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TreeGrid.BorderBrush" Color="#D6D9DE" />
+    <SolidColorBrush x:Key="TreeGrid.GridLineBrush" Color="#ECEEF1" />
+    <SolidColorBrush x:Key="TreeGrid.HeaderBackground" Color="#F5F6F8" />
+    <SolidColorBrush x:Key="TreeGrid.HeaderForeground" Color="#1F2328" />
+    <SolidColorBrush x:Key="TreeGrid.CellForeground" Color="#24292F" />
+    <SolidColorBrush x:Key="TreeGrid.AlternatingRowBackground" Color="#FAFBFC" />
+    <SolidColorBrush x:Key="TreeGrid.SelectedRowBackground" Color="#DCEBFB" />
+    <SolidColorBrush x:Key="TreeGrid.ExpanderGlyph" Color="#57606A" />
+    <SolidColorBrush x:Key="TreeGrid.CurrentCellBorder" Color="#1F6FEB" />
+    <SolidColorBrush x:Key="TreeGrid.DropIndicator" Color="#1F6FEB" />
+    <SolidColorBrush x:Key="TreeGrid.GripperHover" Color="#B6BDC6" />
+    <SolidColorBrush x:Key="TreeGrid.FilterGlyph" Color="#8B949E" />
+    <SolidColorBrush x:Key="TreeGrid.FilterGlyphActive" Color="#1F6FEB" />
+    <SolidColorBrush x:Key="TreeGrid.PopupBackground" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TreeGrid.SortBadgeBackground" Color="#D9E4F1" />
+    <SolidColorBrush x:Key="TreeGrid.ErrorBrush" Color="#D1242F" />
+    <SolidColorBrush x:Key="TreeGrid.EditorBackground" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TreeGrid.FrozenLine" Color="#9AA4B0" />
+
+    <!-- =============================================================== Cell -->
+    <Style TargetType="{x:Type view:TreeGridCell}">
+        <Setter Property="Foreground" Value="{DynamicResource TreeGrid.CellForeground}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type view:TreeGridCell}">
+                    <Border x:Name="CellRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource TreeGrid.GridLineBrush}"
+                            BorderThickness="0,0,1,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Hierarchy indent -->
+                            <Border x:Name="IndentSpacer"
+                                    Grid.Column="0"
+                                    Width="{TemplateBinding Indent}" />
+
+                            <!-- Expander -->
+                            <Button x:Name="PART_Expander"
+                                    Grid.Column="1"
+                                    Width="16"
+                                    Height="16"
+                                    Margin="0,0,2,0"
+                                    Padding="0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Focusable="False"
+                                    Visibility="Collapsed">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <Path x:Name="Glyph"
+                                                  Data="M 0 0 L 4 4 L 0 8 Z"
+                                                  Fill="{DynamicResource TreeGrid.ExpanderGlyph}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  RenderTransformOrigin="0.5,0.5">
+                                                <Path.RenderTransform>
+                                                    <RotateTransform x:Name="GlyphRotate" Angle="0" />
+                                                </Path.RenderTransform>
+                                            </Path>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- Busy indicator for load-on-demand -->
+                            <TextBlock x:Name="BusyGlyph"
+                                       Grid.Column="1"
+                                       Width="16"
+                                       Text="&#183;&#183;&#183;"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TreeGrid.ExpanderGlyph}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Visibility="Collapsed" />
+
+                            <!-- Hierarchy checkbox (AllowCheckBoxSelection) -->
+                            <CheckBox x:Name="PART_NodeCheckBox"
+                                      Grid.Column="2"
+                                      Margin="2,0,4,0"
+                                      VerticalAlignment="Center"
+                                      IsThreeState="True"
+                                      Focusable="False"
+                                      IsChecked="{Binding NodeCheckState, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                      Visibility="Collapsed" />
+
+                            <!-- Bound boolean (TreeGridCheckBoxColumn) -->
+                            <CheckBox x:Name="PART_ValueCheckBox"
+                                      Grid.Column="3"
+                                      Margin="6,0,6,0"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Focusable="False"
+                                      IsChecked="{Binding ValueCheckState, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                      Visibility="Collapsed" />
+
+                            <TextBlock x:Name="CellText"
+                                       Grid.Column="3"
+                                       Margin="6,0,6,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       Text="{TemplateBinding DisplayText}"
+                                       TextAlignment="{TemplateBinding CellTextAlignment}"
+                                       TextTrimming="CharacterEllipsis" />
+
+                            <!-- Template / progress / hyperlink columns -->
+                            <ContentPresenter x:Name="CustomDisplayHost"
+                                              Grid.Column="3"
+                                              Content="{TemplateBinding CustomDisplayElement}"
+                                              Visibility="Collapsed" />
+
+                            <!-- Editor host, spanning the whole cell -->
+                            <ContentPresenter x:Name="EditHost"
+                                              Grid.Column="0"
+                                              Grid.ColumnSpan="4"
+                                              Content="{TemplateBinding EditElement}"
+                                              Visibility="Collapsed" />
+
+                            <!-- Validation marker -->
+                            <Path x:Name="ErrorGlyph"
+                                  Grid.Column="3"
+                                  Data="M 0 0 L 6 0 L 6 6 Z"
+                                  Fill="{DynamicResource TreeGrid.ErrorBrush}"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Top"
+                                  Margin="0,1,1,0"
+                                  Visibility="Collapsed"
+                                  ToolTip="{TemplateBinding ErrorMessage}" />
+                        </Grid>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="ShowExpander" Value="True">
+                            <Setter TargetName="PART_Expander" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="PART_Expander" Property="RenderTransform">
+                                <Setter.Value>
+                                    <RotateTransform Angle="90" CenterX="8" CenterY="8" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsLoading" Value="True">
+                            <Setter TargetName="PART_Expander" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="BusyGlyph" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsTreeColumn" Value="False">
+                            <Setter TargetName="IndentSpacer" Property="Width" Value="0" />
+                        </Trigger>
+                        <Trigger Property="ShowNodeCheckBox" Value="True">
+                            <Setter TargetName="PART_NodeCheckBox" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="ShowValueCheckBox" Value="True">
+                            <Setter TargetName="PART_ValueCheckBox" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="CellText" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="IsCurrentCell" Value="True">
+                            <Setter TargetName="CellRoot" Property="BorderBrush"
+                                    Value="{DynamicResource TreeGrid.CurrentCellBorder}" />
+                            <Setter TargetName="CellRoot" Property="BorderThickness" Value="1" />
+                        </Trigger>
+                        <Trigger Property="HasCustomDisplay" Value="True">
+                            <Setter TargetName="CustomDisplayHost" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="CellText" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="IsMergedCell" Value="True">
+                            <Setter TargetName="CellRoot" Property="BorderThickness" Value="0,0,1,1" />
+                            <Setter TargetName="CellRoot" Property="BorderBrush"
+                                    Value="{DynamicResource TreeGrid.GridLineBrush}" />
+                        </Trigger>
+                        <Trigger Property="HasError" Value="True">
+                            <Setter TargetName="ErrorGlyph" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="CellRoot" Property="BorderBrush"
+                                    Value="{DynamicResource TreeGrid.ErrorBrush}" />
+                            <Setter TargetName="CellRoot" Property="BorderThickness" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsEditing" Value="True">
+                            <Setter TargetName="EditHost" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="CellText" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="CustomDisplayHost" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="PART_ValueCheckBox" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="CellRoot" Property="Background"
+                                    Value="{DynamicResource TreeGrid.EditorBackground}" />
+                            <Setter TargetName="CellRoot" Property="BorderBrush"
+                                    Value="{DynamicResource TreeGrid.CurrentCellBorder}" />
+                            <Setter TargetName="CellRoot" Property="BorderThickness" Value="1" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ======================================================== Header cell -->
+    <Style TargetType="{x:Type view:TreeGridHeaderCell}">
+        <Setter Property="Foreground" Value="{DynamicResource TreeGrid.HeaderForeground}" />
+        <Setter Property="Background" Value="{DynamicResource TreeGrid.HeaderBackground}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type view:TreeGridHeaderCell}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource TreeGrid.BorderBrush}"
+                            BorderThickness="0,0,1,1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Margin="6,0,4,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       Text="{TemplateBinding HeaderText}"
+                                       TextAlignment="{TemplateBinding CellTextAlignment}"
+                                       TextTrimming="CharacterEllipsis" />
+
+                            <Path x:Name="SortGlyph"
+                                  Grid.Column="1"
+                                  Margin="0,0,6,0"
+                                  Data="M 0 4 L 4 0 L 8 4 Z"
+                                  Fill="{DynamicResource TreeGrid.ExpanderGlyph}"
+                                  VerticalAlignment="Center"
+                                  Visibility="Collapsed" />
+
+                            <Border x:Name="SortBadge"
+                                    Grid.Column="2"
+                                    Margin="0,0,4,0"
+                                    Padding="4,1"
+                                    CornerRadius="7"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource TreeGrid.SortBadgeBackground}"
+                                    Visibility="Collapsed">
+                                <TextBlock FontSize="10"
+                                           Foreground="{DynamicResource TreeGrid.HeaderForeground}"
+                                           Text="{TemplateBinding SortNumber}" />
+                            </Border>
+
+                            <Button x:Name="PART_FilterButton"
+                                    Grid.Column="3"
+                                    Width="18"
+                                    Height="18"
+                                    Margin="0,0,2,0"
+                                    Padding="0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Focusable="False"
+                                    Visibility="Collapsed">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Path x:Name="FilterGlyph"
+                                      Data="M 0 0 L 10 0 L 6 5 L 6 9 L 4 8 L 4 5 Z"
+                                      Fill="{DynamicResource TreeGrid.FilterGlyph}" />
+                            </Button>
+
+                            <Thumb x:Name="PART_ResizeGripper"
+                                   Grid.Column="4"
+                                   Width="6"
+                                   Cursor="SizeWE"
+                                   Background="Transparent">
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Border x:Name="GripperRoot" Background="Transparent">
+                                            <Rectangle x:Name="GripperLine"
+                                                       Width="2"
+                                                       HorizontalAlignment="Center"
+                                                       Fill="{DynamicResource TreeGrid.GripperHover}"
+                                                       Opacity="0" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="GripperLine" Property="Opacity" Value="1" />
+                                            </Trigger>
+                                            <Trigger Property="IsDragging" Value="True">
+                                                <Setter TargetName="GripperLine" Property="Opacity" Value="1" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+                        </Grid>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="SortDirection" Value="Ascending">
+                            <Setter TargetName="SortGlyph" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="SortDirection" Value="Descending">
+                            <Setter TargetName="SortGlyph" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="SortGlyph" Property="Data" Value="M 0 0 L 8 0 L 4 4 Z" />
+                        </Trigger>
+                        <Trigger Property="CanResize" Value="False">
+                            <Setter TargetName="PART_ResizeGripper" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="ShowSortNumber" Value="True">
+                            <Setter TargetName="SortBadge" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="ShowFilterButton" Value="True">
+                            <Setter TargetName="PART_FilterButton" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsFilterApplied" Value="True">
+                            <Setter TargetName="FilterGlyph" Property="Fill"
+                                    Value="{DynamicResource TreeGrid.FilterGlyphActive}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ======================================================= Filter popup -->
+    <Style TargetType="{x:Type filter:FilterPopupControl}">
+        <Setter Property="Width" Value="270" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type filter:FilterPopupControl}">
+                    <Border Background="{DynamicResource TreeGrid.PopupBackground}"
+                            BorderBrush="{DynamicResource TreeGrid.BorderBrush}"
+                            BorderThickness="1"
+                            Padding="8"
+                            SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.25" />
+                        </Border.Effect>
+
+                        <StackPanel>
+                            <TextBlock Text="{TemplateBinding ColumnHeader}"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,6"
+                                       TextTrimming="CharacterEllipsis" />
+
+                            <!-- Sort shortcuts -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <Button x:Name="PART_SortAscending" Content="Sort A-Z"
+                                        Padding="8,3" Margin="0,0,4,0" />
+                                <Button x:Name="PART_SortDescending" Content="Sort Z-A"
+                                        Padding="8,3" />
+                            </StackPanel>
+
+                            <Separator Margin="0,0,0,6" />
+
+                            <!-- Value list -->
+                            <StackPanel x:Name="ValueListSection">
+                                <TextBox Text="{Binding SearchText, RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,0,0,4"
+                                         Padding="4,3" />
+
+                                <CheckBox x:Name="PART_SelectAll"
+                                          Content="(Select All)"
+                                          IsThreeState="True"
+                                          Margin="2,0,0,4"
+                                          IsChecked="{Binding SelectAllState, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}" />
+
+                                <ListBox MaxHeight="180"
+                                         BorderThickness="1"
+                                         BorderBrush="{DynamicResource TreeGrid.BorderBrush}"
+                                         ItemsSource="{Binding VisibleElements, RelativeSource={RelativeSource TemplatedParent}}"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="2" />
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}">
+                                                <TextBlock Text="{Binding DisplayText}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </CheckBox>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+
+                            <!-- Condition filters -->
+                            <Expander Header="Conditions"
+                                      Margin="0,6,0,0"
+                                      IsExpanded="{Binding IsAdvancedExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <StackPanel Margin="0,4,0,0">
+                                    <ComboBox ItemsSource="{Binding ConditionTypes, RelativeSource={RelativeSource TemplatedParent}}"
+                                              SelectedItem="{Binding FirstCondition, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                              Margin="0,0,0,3" />
+                                    <TextBox Text="{Binding FirstValue, RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}"
+                                             Padding="4,3" Margin="0,0,0,5" />
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                        <RadioButton Content="And" Margin="0,0,10,0"
+                                                     IsChecked="{Binding IsAndJoin, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
+                                        <RadioButton Content="Or" />
+                                    </StackPanel>
+
+                                    <ComboBox ItemsSource="{Binding ConditionTypes, RelativeSource={RelativeSource TemplatedParent}}"
+                                              SelectedItem="{Binding SecondCondition, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                              Margin="0,0,0,3" />
+                                    <TextBox Text="{Binding SecondValue, RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}"
+                                             Padding="4,3" Margin="0,0,0,5" />
+
+                                    <CheckBox Content="Case sensitive"
+                                              IsChecked="{Binding IsCaseSensitive, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- Actions -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                <Button x:Name="PART_ClearButton" Content="Clear"
+                                        Padding="10,3" Margin="0,0,4,0" />
+                                <Button x:Name="PART_CancelButton" Content="Cancel"
+                                        Padding="10,3" Margin="0,0,4,0" />
+                                <Button x:Name="PART_OkButton" Content="OK"
+                                        Padding="14,3" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="CanUseValueList" Value="False">
+                            <Setter TargetName="ValueListSection" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================================================ Control -->
+    <Style TargetType="{x:Type tg:TreeGridControl}">
+        <Setter Property="Background" Value="{DynamicResource TreeGrid.Background}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource TreeGrid.BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Focusable" Value="True" />
+        <Setter Property="GridLineBrush" Value="{DynamicResource TreeGrid.GridLineBrush}" />
+        <Setter Property="AlternatingRowBackground" Value="{DynamicResource TreeGrid.AlternatingRowBackground}" />
+        <Setter Property="SelectedRowBackground" Value="{DynamicResource TreeGrid.SelectedRowBackground}" />
+        <Setter Property="DropIndicatorBrush" Value="{DynamicResource TreeGrid.DropIndicator}" />
+        <Setter Property="FrozenLineBrush" Value="{DynamicResource TreeGrid.FrozenLine}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type tg:TreeGridControl}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            SnapsToDevicePixels="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <Border x:Name="PART_HeaderHost"
+                                    Grid.Row="0"
+                                    Height="{TemplateBinding HeaderRowHeight}"
+                                    Background="{DynamicResource TreeGrid.HeaderBackground}"
+                                    ClipToBounds="True" />
+
+                            <ScrollViewer x:Name="PART_ScrollViewer"
+                                          Grid.Row="1"
+                                          CanContentScroll="True"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Auto"
+                                          Focusable="False">
+                                <view:VisualContainer x:Name="PART_VisualContainer"
+                                                      ClipToBounds="True" />
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

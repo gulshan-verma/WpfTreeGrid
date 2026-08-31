@@ -1,0 +1,17 @@
+<Application x:Class="TreeGrid.Demo.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!--
+                    Merged at application scope so the window chrome can use the same
+                    keys as the grid. The theme toggle swaps this one entry.
+                -->
+                <ResourceDictionary x:Name="ThemeDictionary"
+                                    Source="pack://application:,,,/TreeGrid.Wpf;component/Themes/FluentLight.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,31 @@
+<!--
+    Light theme. These are the same values Generic.xaml falls back to, published as
+    a dictionary so an application can merge Light or Dark at app scope and have
+    every DynamicResource lookup resolve in both states.
+
+        <ResourceDictionary Source="pack://application:,,,/TreeGrid.Wpf;component/Themes/FluentLight.xaml" />
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="TreeGrid.Background" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TreeGrid.BorderBrush" Color="#D6D9DE" />
+    <SolidColorBrush x:Key="TreeGrid.GridLineBrush" Color="#ECEEF1" />
+    <SolidColorBrush x:Key="TreeGrid.HeaderBackground" Color="#F5F6F8" />
+    <SolidColorBrush x:Key="TreeGrid.HeaderForeground" Color="#1F2328" />
+    <SolidColorBrush x:Key="TreeGrid.CellForeground" Color="#24292F" />
+    <SolidColorBrush x:Key="TreeGrid.AlternatingRowBackground" Color="#FAFBFC" />
+    <SolidColorBrush x:Key="TreeGrid.SelectedRowBackground" Color="#DCEBFB" />
+    <SolidColorBrush x:Key="TreeGrid.ExpanderGlyph" Color="#57606A" />
+    <SolidColorBrush x:Key="TreeGrid.CurrentCellBorder" Color="#1F6FEB" />
+    <SolidColorBrush x:Key="TreeGrid.DropIndicator" Color="#1F6FEB" />
+    <SolidColorBrush x:Key="TreeGrid.GripperHover" Color="#B6BDC6" />
+    <SolidColorBrush x:Key="TreeGrid.FilterGlyph" Color="#8B949E" />
+    <SolidColorBrush x:Key="TreeGrid.FilterGlyphActive" Color="#1F6FEB" />
+    <SolidColorBrush x:Key="TreeGrid.PopupBackground" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TreeGrid.SortBadgeBackground" Color="#D9E4F1" />
+    <SolidColorBrush x:Key="TreeGrid.ErrorBrush" Color="#D1242F" />
+    <SolidColorBrush x:Key="TreeGrid.EditorBackground" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TreeGrid.FrozenLine" Color="#9AA4B0" />
+
+</ResourceDictionary>
