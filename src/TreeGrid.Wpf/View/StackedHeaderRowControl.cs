@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using TreeGrid.Wpf.Columns;
 using TreeGrid.Wpf.Headers;
+using TreeGrid.Wpf.Styling;
 
 namespace TreeGrid.Wpf.View
 {
@@ -33,6 +34,8 @@ namespace TreeGrid.Wpf.View
 
         public Brush GridLineBrush { get; set; }
 
+        public TreeGridVisualStyle VisualStyle { get; set; }
+
         public void Refresh()
         {
             if (Layout == null || HeaderRow == null)
@@ -58,6 +61,15 @@ namespace TreeGrid.Wpf.View
             {
                 _cells[i].HeaderText = _spans[i].HeaderText;
                 _cells[i].CellTextAlignment = TextAlignment.Center;
+
+                if (VisualStyle != null)
+                {
+                    _cells[i].Background = VisualStyle.HeaderBackground;
+                    _cells[i].Foreground = VisualStyle.HeaderForeground;
+                    _cells[i].BorderBrush = VisualStyle.HeaderBorderBrush;
+                    _cells[i].FontSize = VisualStyle.HeaderFontSize;
+                    _cells[i].FontWeight = VisualStyle.HeaderFontWeight;
+                }
                 _cells[i].ShowFilterButton = false;
                 _cells[i].SortDirection = ListSortDirectionOrNone.None;
             }

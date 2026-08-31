@@ -26,6 +26,7 @@ using TreeGrid.Wpf.Headers;
 using TreeGrid.Wpf.Merging;
 using TreeGrid.Wpf.Selection;
 using TreeGrid.Wpf.Sorting;
+using TreeGrid.Wpf.Styling;
 using TreeGrid.Wpf.Validation;
 using TreeGrid.Wpf.View;
 
@@ -291,6 +292,84 @@ namespace TreeGrid.Wpf
 
         public static readonly DependencyProperty ExpanderContextMenuProperty = DependencyProperty.Register(
             nameof(ExpanderContextMenu), typeof(ContextMenu), typeof(TreeGridControl), new PropertyMetadata(null));
+
+        // ------------------------------------------------------ appearance
+
+        public static readonly DependencyProperty HeaderBackgroundProperty = DependencyProperty.Register(
+            nameof(HeaderBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty HeaderForegroundProperty = DependencyProperty.Register(
+            nameof(HeaderForeground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty HeaderBorderBrushProperty = DependencyProperty.Register(
+            nameof(HeaderBorderBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty HeaderFontSizeProperty = DependencyProperty.Register(
+            nameof(HeaderFontSize), typeof(double), typeof(TreeGridControl),
+            new PropertyMetadata(12d, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty HeaderFontWeightProperty = DependencyProperty.Register(
+            nameof(HeaderFontWeight), typeof(FontWeight), typeof(TreeGridControl),
+            new PropertyMetadata(FontWeights.SemiBold, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty HeaderFontFamilyProperty = DependencyProperty.Register(
+            nameof(HeaderFontFamily), typeof(FontFamily), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty RowBackgroundProperty = DependencyProperty.Register(
+            nameof(RowBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty HoverRowBackgroundProperty = DependencyProperty.Register(
+            nameof(HoverRowBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty SelectedRowForegroundProperty = DependencyProperty.Register(
+            nameof(SelectedRowForeground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty CellForegroundProperty = DependencyProperty.Register(
+            nameof(CellForeground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty CellFontSizeProperty = DependencyProperty.Register(
+            nameof(CellFontSize), typeof(double), typeof(TreeGridControl),
+            new PropertyMetadata(12d, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty CellFontWeightProperty = DependencyProperty.Register(
+            nameof(CellFontWeight), typeof(FontWeight), typeof(TreeGridControl),
+            new PropertyMetadata(FontWeights.Normal, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty CellFontFamilyProperty = DependencyProperty.Register(
+            nameof(CellFontFamily), typeof(FontFamily), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty CellPaddingProperty = DependencyProperty.Register(
+            nameof(CellPadding), typeof(Thickness), typeof(TreeGridControl),
+            new PropertyMetadata(new Thickness(6, 0, 6, 0), OnVisualConfigChanged));
+
+        public static readonly DependencyProperty GridLinesVisibilityProperty = DependencyProperty.Register(
+            nameof(GridLinesVisibility), typeof(GridLinesVisibility), typeof(TreeGridControl),
+            new PropertyMetadata(GridLinesVisibility.Both, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty CurrentCellBorderBrushProperty = DependencyProperty.Register(
+            nameof(CurrentCellBorderBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty ErrorBrushProperty = DependencyProperty.Register(
+            nameof(ErrorBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty EditorBackgroundProperty = DependencyProperty.Register(
+            nameof(EditorBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty ExpanderGlyphBrushProperty = DependencyProperty.Register(
+            nameof(ExpanderGlyphBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
 
         public static readonly DependencyProperty EnableColumnVirtualizationProperty = DependencyProperty.Register(
             nameof(EnableColumnVirtualization), typeof(bool), typeof(TreeGridControl),
@@ -633,6 +712,124 @@ namespace TreeGrid.Wpf
         /// <summary>The virtualizing panel. Exposed for diagnostics and benchmarking.</summary>
         public VisualContainer Container => _container;
 
+        /// <summary>Header strip background. Falls back to the current theme when unset.</summary>
+        public Brush HeaderBackground
+        {
+            get => (Brush)GetValue(HeaderBackgroundProperty);
+            set => SetValue(HeaderBackgroundProperty, value);
+        }
+
+        public Brush HeaderForeground
+        {
+            get => (Brush)GetValue(HeaderForegroundProperty);
+            set => SetValue(HeaderForegroundProperty, value);
+        }
+
+        public Brush HeaderBorderBrush
+        {
+            get => (Brush)GetValue(HeaderBorderBrushProperty);
+            set => SetValue(HeaderBorderBrushProperty, value);
+        }
+
+        public double HeaderFontSize
+        {
+            get => (double)GetValue(HeaderFontSizeProperty);
+            set => SetValue(HeaderFontSizeProperty, value);
+        }
+
+        public FontWeight HeaderFontWeight
+        {
+            get => (FontWeight)GetValue(HeaderFontWeightProperty);
+            set => SetValue(HeaderFontWeightProperty, value);
+        }
+
+        public FontFamily HeaderFontFamily
+        {
+            get => (FontFamily)GetValue(HeaderFontFamilyProperty);
+            set => SetValue(HeaderFontFamilyProperty, value);
+        }
+
+        /// <summary>Background for ordinary rows. Alternating rows use their own brush.</summary>
+        public Brush RowBackground
+        {
+            get => (Brush)GetValue(RowBackgroundProperty);
+            set => SetValue(RowBackgroundProperty, value);
+        }
+
+        /// <summary>Set this to enable row hover highlighting. Null disables it entirely.</summary>
+        public Brush HoverRowBackground
+        {
+            get => (Brush)GetValue(HoverRowBackgroundProperty);
+            set => SetValue(HoverRowBackgroundProperty, value);
+        }
+
+        public Brush SelectedRowForeground
+        {
+            get => (Brush)GetValue(SelectedRowForegroundProperty);
+            set => SetValue(SelectedRowForegroundProperty, value);
+        }
+
+        public Brush CellForeground
+        {
+            get => (Brush)GetValue(CellForegroundProperty);
+            set => SetValue(CellForegroundProperty, value);
+        }
+
+        public double CellFontSize
+        {
+            get => (double)GetValue(CellFontSizeProperty);
+            set => SetValue(CellFontSizeProperty, value);
+        }
+
+        public FontWeight CellFontWeight
+        {
+            get => (FontWeight)GetValue(CellFontWeightProperty);
+            set => SetValue(CellFontWeightProperty, value);
+        }
+
+        public FontFamily CellFontFamily
+        {
+            get => (FontFamily)GetValue(CellFontFamilyProperty);
+            set => SetValue(CellFontFamilyProperty, value);
+        }
+
+        public Thickness CellPadding
+        {
+            get => (Thickness)GetValue(CellPaddingProperty);
+            set => SetValue(CellPaddingProperty, value);
+        }
+
+        /// <summary>None, Horizontal, Vertical or Both.</summary>
+        public GridLinesVisibility GridLinesVisibility
+        {
+            get => (GridLinesVisibility)GetValue(GridLinesVisibilityProperty);
+            set => SetValue(GridLinesVisibilityProperty, value);
+        }
+
+        public Brush CurrentCellBorderBrush
+        {
+            get => (Brush)GetValue(CurrentCellBorderBrushProperty);
+            set => SetValue(CurrentCellBorderBrushProperty, value);
+        }
+
+        public Brush ErrorBrush
+        {
+            get => (Brush)GetValue(ErrorBrushProperty);
+            set => SetValue(ErrorBrushProperty, value);
+        }
+
+        public Brush EditorBackground
+        {
+            get => (Brush)GetValue(EditorBackgroundProperty);
+            set => SetValue(EditorBackgroundProperty, value);
+        }
+
+        public Brush ExpanderGlyphBrush
+        {
+            get => (Brush)GetValue(ExpanderGlyphBrushProperty);
+            set => SetValue(ExpanderGlyphBrushProperty, value);
+        }
+
         public TreeGridColumns Columns { get; }
 
         /// <summary>The flattened, currently-visible node projection.</summary>
@@ -683,6 +880,15 @@ namespace TreeGrid.Wpf
         public event EventHandler<PasteContentEventArgs> PasteContent;
 
         public event EventHandler<GridContextMenuOpeningEventArgs> GridContextMenuOpening;
+
+        /// <summary>
+        /// Raised for each realised row so appearance can depend on the data.
+        /// Leave a property null to keep the grid's own value.
+        /// </summary>
+        public event EventHandler<QueryRowStyleEventArgs> QueryRowStyle;
+
+        /// <summary>Per-cell equivalent of <see cref="QueryRowStyle"/>.</summary>
+        public event EventHandler<QueryCellStyleEventArgs> QueryCellStyle;
 
         // --------------------------------------------------------------- template
 
@@ -843,6 +1049,71 @@ namespace TreeGrid.Wpf
             grid._container?.RefreshRowStates();
         }
 
+        /// <summary>
+        /// Builds the appearance actually used for a pass: the explicit property when
+        /// set, otherwise the matching theme resource. Resolving once here means rows
+        /// and cells never have to handle a null and guess a fallback.
+        /// </summary>
+        public TreeGridVisualStyle ResolveVisualStyle() => new TreeGridVisualStyle
+        {
+            HeaderBackground = HeaderBackground ?? ThemeBrush("TreeGrid.HeaderBackground"),
+            HeaderForeground = HeaderForeground ?? ThemeBrush("TreeGrid.HeaderForeground"),
+            HeaderBorderBrush = HeaderBorderBrush ?? ThemeBrush("TreeGrid.BorderBrush"),
+            HeaderFontFamily = HeaderFontFamily,
+            HeaderFontSize = HeaderFontSize,
+            HeaderFontWeight = HeaderFontWeight,
+
+            RowBackground = RowBackground,
+            AlternatingRowBackground = AlternatingRowBackground ?? ThemeBrush("TreeGrid.AlternatingRowBackground"),
+            SelectedRowBackground = SelectedRowBackground ?? ThemeBrush("TreeGrid.SelectedRowBackground"),
+            SelectedRowForeground = SelectedRowForeground,
+            HoverRowBackground = HoverRowBackground,
+            ShowAlternatingRows = ShowAlternatingRows,
+
+            CellForeground = CellForeground ?? ThemeBrush("TreeGrid.CellForeground"),
+            CellFontFamily = CellFontFamily,
+            CellFontSize = CellFontSize,
+            CellFontWeight = CellFontWeight,
+            CellPadding = CellPadding,
+
+            GridLineBrush = GridLineBrush ?? ThemeBrush("TreeGrid.GridLineBrush"),
+            GridLinesVisibility = GridLinesVisibility,
+            CurrentCellBorderBrush = CurrentCellBorderBrush ?? ThemeBrush("TreeGrid.CurrentCellBorder"),
+            ErrorBrush = ErrorBrush ?? ThemeBrush("TreeGrid.ErrorBrush"),
+            EditorBackground = EditorBackground ?? ThemeBrush("TreeGrid.EditorBackground"),
+            ExpanderGlyphBrush = ExpanderGlyphBrush ?? ThemeBrush("TreeGrid.ExpanderGlyph"),
+            FrozenLineBrush = FrozenLineBrush ?? ThemeBrush("TreeGrid.FrozenLine"),
+            MergedCellBackground = MergedCellBackground ?? Background
+        };
+
+        private Brush ThemeBrush(string key) => TryFindResource(key) as Brush;
+
+        private QueryRowStyleEventArgs ResolveRowStyle(TreeNode node, int rowIndex)
+        {
+            var args = new QueryRowStyleEventArgs(node, rowIndex);
+            QueryRowStyle?.Invoke(this, args);
+            return args;
+        }
+
+        private QueryCellStyleEventArgs ResolveCellStyle(TreeNode node, TreeGridColumn column, int columnIndex)
+        {
+            var args = new QueryCellStyleEventArgs(node, column, node?.FlatIndex ?? -1, columnIndex);
+            QueryCellStyle?.Invoke(this, args);
+            return args;
+        }
+
+        /// <summary>
+        /// Re-reads appearance and repaints. Call after changing styling properties in
+        /// code, or after your conditional-formatting inputs change.
+        /// </summary>
+        public void RefreshAppearance()
+        {
+            ApplyVisualConfig();
+            _headerRow?.RefreshCells();
+            _container?.ResetRows();
+            _container?.InvalidateMeasure();
+        }
+
         private int ResolveCurrentColumn(TreeNode node) =>
             ReferenceEquals(node, _selection.CurrentNode) ? _selection.CurrentColumnIndex : -1;
 
@@ -888,6 +1159,9 @@ namespace TreeGrid.Wpf
                 _container.ErrorResolver = ResolveCellError;
                 _container.FrozenLineBrush = FrozenLineBrush;
                 _container.MergedCellBackground = MergedCellBackground ?? Background;
+                _container.VisualStyle = ResolveVisualStyle();
+                _container.RowStyleResolver = QueryRowStyle != null ? ResolveRowStyle : (Func<TreeNode, int, QueryRowStyleEventArgs>)null;
+                _container.CellStyleResolver = QueryCellStyle != null ? ResolveCellStyle : (Func<TreeNode, TreeGridColumn, int, QueryCellStyleEventArgs>)null;
             }
 
             _mergeController.IsEnabled = AllowMergeCells;
@@ -898,7 +1172,10 @@ namespace TreeGrid.Wpf
                 _headerHost.Height = HeaderRowHeight + StackedHeaderRows.Count * StackedHeaderRowHeight;
 
             if (_headerRow != null)
+            {
                 _headerRow.EnableColumnVirtualization = EnableColumnVirtualization;
+                _headerRow.VisualStyle = _container?.VisualStyle ?? ResolveVisualStyle();
+            }
         }
 
         private void OnColumnsChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -1020,6 +1297,7 @@ namespace TreeGrid.Wpf
             {
                 stacked.ViewportWidth = viewportWidth;
                 stacked.HorizontalOffset = _container?.HorizontalOffset ?? 0;
+                stacked.VisualStyle = _container?.VisualStyle;
                 stacked.Refresh();
             }
 

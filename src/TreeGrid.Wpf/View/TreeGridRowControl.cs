@@ -6,6 +6,7 @@ using System.Windows.Media;
 using TreeGrid.Wpf.Columns;
 using TreeGrid.Wpf.Data;
 using TreeGrid.Wpf.Merging;
+using TreeGrid.Wpf.Styling;
 
 namespace TreeGrid.Wpf.View
 {
@@ -94,6 +95,15 @@ namespace TreeGrid.Wpf.View
         /// stripes of the rows underneath show through the span.
         /// </summary>
         public Brush MergedCellBackground { get; set; }
+
+        /// <summary>Resolved appearance for this grid.</summary>
+        public TreeGridVisualStyle VisualStyle { get; set; }
+
+        /// <summary>Per-row conditional overrides, or null.</summary>
+        public QueryRowStyleEventArgs RowOverrides { get; set; }
+
+        /// <summary>Supplies per-cell conditional overrides, or null.</summary>
+        public Func<TreeNode, TreeGridColumn, int, QueryCellStyleEventArgs> CellStyleResolver { get; set; }
 
         /// <summary>
         /// Mirrors cell positions for right-to-left cultures. Only the arrange pass is
@@ -191,12 +201,14 @@ namespace TreeGrid.Wpf.View
                 {
                     var header = (TreeGridHeaderCell)element;
                     header.Bind(column);
+                    ApplyHeaderStyle(header);
                     HeaderIndicatorResolver?.Invoke(header);
                 }
                 else if (Node != null)
                 {
                     var cell = (TreeGridCell)element;
                     cell.IsTreeColumn = index == TreeColumnIndex;
+                    cell.ApplyVisualStyle(VisualStyle);
                     cell.Bind(Node, column, index, IndentPerLevel, IndentBase, ShowNodeCheckBox);
 
                     var span = _mergeSpans.TryGetValue(index, out var resolved) ? resolved : 1;
@@ -294,6 +306,54 @@ namespace TreeGrid.Wpf.View
                 : null;
 
             cell.RefreshState(isSelected, isCurrent, error);
+
+            // Precedence, narrowest wins: cell override, then row override, then the
+            // selection colour, then the grid's own foreground.
+            var foreground = VisualStyle?.CellForeground;
+            var weight = VisualStyle?.CellFontWeight ?? FontWeights.Normal;
+
+            if (isSelected && VisualStyle?.SelectedRowForeground != null)
+                foreground = VisualStyle.SelectedRowForeground;
+
+            if (RowOverrides != null)
+            {
+                foreground = RowOverrides.Foreground ?? foreground;
+                weight = RowOverrides.FontWeight ?? weight;
+            }
+
+            if (CellStyleResolver != null && cell.Column != null)
+            {
+                var overrides = CellStyleResolver(Node, cell.Column, columnIndex);
+
+                if (overrides != null && overrides.HasOverrides)
+                {
+                    foreground = overrides.Foreground ?? foreground;
+                    weight = overrides.FontWeight ?? weight;
+
+                    if (overrides.Background != null && !cell.IsMergedCell)
+                        cell.Background = overrides.Background;
+                }
+            }
+
+            if (foreground != null)
+                cell.Foreground = foreground;
+
+            cell.FontWeight = weight;
+        }
+
+        private void ApplyHeaderStyle(TreeGridHeaderCell header)
+        {
+            if (VisualStyle == null)
+                return;
+
+            header.Background = VisualStyle.HeaderBackground;
+            header.Foreground = VisualStyle.HeaderForeground;
+            header.BorderBrush = VisualStyle.HeaderBorderBrush;
+            header.FontSize = VisualStyle.HeaderFontSize;
+            header.FontWeight = VisualStyle.HeaderFontWeight;
+
+            if (VisualStyle.HeaderFontFamily != null)
+                header.FontFamily = VisualStyle.HeaderFontFamily;
         }
 
         private void ResolveMergeState()
@@ -428,14 +488,14 @@ namespace TreeGrid.Wpf.View
         {
             base.OnRender(dc);
 
-            if (GridLineBrush == null)
-                return;
+            if (GridLineBrush != null && VisualStyle?.ShowHorizontalGridLines != false)
+            {
+                var pen = new Pen(GridLineBrush, 1);
+                pen.Freeze();
 
-            var pen = new Pen(GridLineBrush, 1);
-            pen.Freeze();
-
-            var y = Math.Round(ActualHeight) - 0.5;
-            dc.DrawLine(pen, new Point(0, y), new Point(ActualWidth, y));
+                var y = Math.Round(ActualHeight) - 0.5;
+                dc.DrawLine(pen, new Point(0, y), new Point(ActualWidth, y));
+            }
 
             if (FrozenLineBrush == null || Layout == null)
                 return;

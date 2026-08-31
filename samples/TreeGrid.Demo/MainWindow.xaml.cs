@@ -14,8 +14,13 @@ using TreeGrid.Wpf.Export;
 using TreeGrid.Wpf.Filtering;
 using TreeGrid.Wpf.Editing;
 using TreeGrid.Wpf.Headers;
+using System.Globalization;
+using System.Windows.Data;
+using System.Windows.Media;
 using TreeGrid.Wpf.Selection;
+using TreeGrid.Wpf.Styling;
 using TreeGrid.Wpf.Validation;
+using TreeGrid.Wpf;
 
 namespace TreeGrid.Demo
 {
@@ -56,6 +61,39 @@ namespace TreeGrid.Demo
         public Array ValidationModes => Enum.GetValues(typeof(GridValidationMode));
 
         public int[] FreezeCounts { get; } = { 0, 1, 2, 3 };
+
+        public Array GridLineOptions => Enum.GetValues(typeof(GridLinesVisibility));
+
+        /// <summary>Named brushes offered by the appearance combos.</summary>
+        public Brush[] Palette { get; } =
+        {
+            Brushes.Transparent,
+            new SolidColorBrush(Color.FromRgb(0xF5, 0xF6, 0xF8)),
+            new SolidColorBrush(Color.FromRgb(0xDC, 0xEB, 0xFB)),
+            new SolidColorBrush(Color.FromRgb(0xEC, 0xEE, 0xF1)),
+            new SolidColorBrush(Color.FromRgb(0x1F, 0x23, 0x28)),
+            new SolidColorBrush(Color.FromRgb(0x1F, 0x6F, 0xEB)),
+            new SolidColorBrush(Color.FromRgb(0x0D, 0x70, 0x4A)),
+            new SolidColorBrush(Color.FromRgb(0xD1, 0x24, 0x2F)),
+            new SolidColorBrush(Color.FromRgb(0xFF, 0xF4, 0xCE)),
+            Brushes.White
+        };
+
+        public FontFamily[] FontFamilies { get; } =
+        {
+            new FontFamily("Segoe UI"),
+            new FontFamily("Calibri"),
+            new FontFamily("Consolas"),
+            new FontFamily("Georgia"),
+            new FontFamily("Verdana")
+        };
+
+        public FontWeight[] FontWeights { get; } =
+        {
+            System.Windows.FontWeights.Normal,
+            System.Windows.FontWeights.SemiBold,
+            System.Windows.FontWeights.Bold
+        };
 
         // --------------------------------------------------------- data sources
 
@@ -229,6 +267,73 @@ namespace TreeGrid.Demo
                 merged.Add(replacement);
         }
 
+        // ----------------------------------------------------------- appearance
+
+        private void OnConditionalChanged(object sender, RoutedEventArgs e)
+        {
+            if (Grid == null)
+                return;
+
+            // Detaching the handler is what turns the feature off: the grid only wires
+            // its resolver when the event actually has subscribers.
+            Grid.QueryRowStyle -= OnQueryRowStyle;
+            Grid.QueryCellStyle -= OnQueryCellStyle;
+
+            if (ConditionalBox.IsChecked == true)
+            {
+                Grid.QueryRowStyle += OnQueryRowStyle;
+                Grid.QueryCellStyle += OnQueryCellStyle;
+            }
+
+            Grid.RefreshAppearance();
+        }
+
+        private void OnQueryRowStyle(object sender, QueryRowStyleEventArgs e)
+        {
+            if (e.Record is not Employee employee)
+                return;
+
+            if (employee.Title == "Director")
+                e.FontWeight = System.Windows.FontWeights.Bold;
+        }
+
+        private void OnQueryCellStyle(object sender, QueryCellStyleEventArgs e)
+        {
+            if (e.Record is not Employee employee || e.Column?.MappingName != nameof(Employee.Salary))
+                return;
+
+            if (employee.Salary > 150000)
+            {
+                e.Background = new SolidColorBrush(Color.FromRgb(0xDC, 0xF5, 0xE6));
+                e.Foreground = new SolidColorBrush(Color.FromRgb(0x0D, 0x70, 0x4A));
+            }
+            else if (employee.Salary < 60000)
+            {
+                e.Background = new SolidColorBrush(Color.FromRgb(0xFD, 0xE0, 0xE0));
+                e.Foreground = new SolidColorBrush(Color.FromRgb(0xD1, 0x24, 0x2F));
+            }
+        }
+
+        private void OnResetAppearance(object sender, RoutedEventArgs e)
+        {
+            // Clearing a property restores the theme fallback, which is not the same as
+            // assigning the current theme's value - the grid will follow later theme
+            // changes again.
+            Grid.ClearValue(TreeGridControl.HeaderBackgroundProperty);
+            Grid.ClearValue(TreeGridControl.HeaderForegroundProperty);
+            Grid.ClearValue(TreeGridControl.SelectedRowBackgroundProperty);
+            Grid.ClearValue(TreeGridControl.HoverRowBackgroundProperty);
+            Grid.ClearValue(TreeGridControl.GridLineBrushProperty);
+            Grid.ClearValue(TreeGridControl.CellFontFamilyProperty);
+            Grid.ClearValue(TreeGridControl.CellFontSizeProperty);
+            Grid.ClearValue(TreeGridControl.HeaderFontWeightProperty);
+            Grid.ClearValue(TreeGridControl.GridLinesVisibilityProperty);
+            Grid.ClearValue(TreeGridControl.RowHeightProperty);
+            Grid.ClearValue(TreeGridControl.IndentPerLevelProperty);
+
+            Grid.RefreshAppearance();
+        }
+
         private void OnRestoreColumns(object sender, RoutedEventArgs e)
         {
             foreach (var column in Grid.Columns)
@@ -296,5 +401,27 @@ namespace TreeGrid.Demo
             MessageBox.Show(GridBenchmark.Format(results), "Benchmark",
                 MessageBoxButton.OK, MessageBoxImage.None);
         }
+    }
+
+    /// <summary>Shows a readable name beside each colour swatch in the palette combos.</summary>
+    public sealed class BrushNameConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is SolidColorBrush brush)
+            {
+                var colour = brush.Color;
+
+                if (colour.A == 0)
+                    return "None";
+
+                return $"#{colour.R:X2}{colour.G:X2}{colour.B:X2}";
+            }
+
+            return value?.ToString() ?? "None";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+            Binding.DoNothing;
     }
 }

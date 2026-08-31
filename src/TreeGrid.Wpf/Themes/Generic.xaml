@@ -35,7 +35,7 @@
                 <ControlTemplate TargetType="{x:Type view:TreeGridCell}">
                     <Border x:Name="CellRoot"
                             Background="{TemplateBinding Background}"
-                            BorderBrush="{DynamicResource TreeGrid.GridLineBrush}"
+                            BorderBrush="{TemplateBinding GridLineBrush}"
                             BorderThickness="0,0,1,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -66,7 +66,7 @@
                                         <Border Background="Transparent">
                                             <Path x:Name="Glyph"
                                                   Data="M 0 0 L 4 4 L 0 8 Z"
-                                                  Fill="{DynamicResource TreeGrid.ExpanderGlyph}"
+                                                  Fill="{Binding ExpanderGlyphBrush, RelativeSource={RelativeSource AncestorType={x:Type view:TreeGridCell}}}"
                                                   HorizontalAlignment="Center"
                                                   VerticalAlignment="Center"
                                                   RenderTransformOrigin="0.5,0.5">
@@ -170,9 +170,12 @@
                             <Setter TargetName="PART_ValueCheckBox" Property="Visibility" Value="Visible" />
                             <Setter TargetName="CellText" Property="Visibility" Value="Collapsed" />
                         </Trigger>
+                        <Trigger Property="ShowVerticalGridLine" Value="False">
+                            <Setter TargetName="CellRoot" Property="BorderThickness" Value="0" />
+                        </Trigger>
                         <Trigger Property="IsCurrentCell" Value="True">
                             <Setter TargetName="CellRoot" Property="BorderBrush"
-                                    Value="{DynamicResource TreeGrid.CurrentCellBorder}" />
+                                    Value="{Binding CurrentCellBorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
                             <Setter TargetName="CellRoot" Property="BorderThickness" Value="1" />
                         </Trigger>
                         <Trigger Property="HasCustomDisplay" Value="True">
@@ -182,12 +185,14 @@
                         <Trigger Property="IsMergedCell" Value="True">
                             <Setter TargetName="CellRoot" Property="BorderThickness" Value="0,0,1,1" />
                             <Setter TargetName="CellRoot" Property="BorderBrush"
-                                    Value="{DynamicResource TreeGrid.GridLineBrush}" />
+                                    Value="{Binding GridLineBrush, RelativeSource={RelativeSource TemplatedParent}}" />
                         </Trigger>
                         <Trigger Property="HasError" Value="True">
                             <Setter TargetName="ErrorGlyph" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="ErrorGlyph" Property="Fill"
+                                    Value="{Binding ErrorBrush, RelativeSource={RelativeSource TemplatedParent}}" />
                             <Setter TargetName="CellRoot" Property="BorderBrush"
-                                    Value="{DynamicResource TreeGrid.ErrorBrush}" />
+                                    Value="{Binding ErrorBrush, RelativeSource={RelativeSource TemplatedParent}}" />
                             <Setter TargetName="CellRoot" Property="BorderThickness" Value="1" />
                         </Trigger>
                         <Trigger Property="IsEditing" Value="True">
@@ -196,7 +201,7 @@
                             <Setter TargetName="CustomDisplayHost" Property="Visibility" Value="Collapsed" />
                             <Setter TargetName="PART_ValueCheckBox" Property="Visibility" Value="Collapsed" />
                             <Setter TargetName="CellRoot" Property="Background"
-                                    Value="{DynamicResource TreeGrid.EditorBackground}" />
+                                    Value="{Binding EditorBackground, RelativeSource={RelativeSource TemplatedParent}}" />
                             <Setter TargetName="CellRoot" Property="BorderBrush"
                                     Value="{DynamicResource TreeGrid.CurrentCellBorder}" />
                             <Setter TargetName="CellRoot" Property="BorderThickness" Value="1" />

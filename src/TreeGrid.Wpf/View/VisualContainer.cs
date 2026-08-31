@@ -7,6 +7,7 @@ using System.Windows.Media;
 using TreeGrid.Wpf.Columns;
 using TreeGrid.Wpf.Data;
 using TreeGrid.Wpf.Merging;
+using TreeGrid.Wpf.Styling;
 
 namespace TreeGrid.Wpf.View
 {
@@ -71,6 +72,17 @@ namespace TreeGrid.Wpf.View
 
         /// <summary>Opaque backing brush for cells that span multiple rows.</summary>
         public Brush MergedCellBackground { get; set; }
+
+        public TreeGridVisualStyle VisualStyle { get; set; }
+
+        /// <summary>Supplies per-row conditional overrides, or null.</summary>
+        public Func<TreeNode, int, QueryRowStyleEventArgs> RowStyleResolver { get; set; }
+
+        /// <summary>Supplies per-cell conditional overrides, or null.</summary>
+        public Func<TreeNode, TreeGridColumn, int, QueryCellStyleEventArgs> CellStyleResolver { get; set; }
+
+        /// <summary>Flat index of the row under the pointer, or -1.</summary>
+        public int HoveredRowIndex { get; private set; } = -1;
 
         /// <summary>Index of the topmost realised row. Merge clamping needs this.</summary>
         public int FirstVisibleRow { get; private set; }
@@ -243,6 +255,9 @@ namespace TreeGrid.Wpf.View
                 row.ErrorResolver = ErrorResolver;
                 row.FrozenLineBrush = FrozenLineBrush;
                 row.MergedCellBackground = MergedCellBackground;
+                row.VisualStyle = VisualStyle;
+                row.CellStyleResolver = CellStyleResolver;
+                row.RowOverrides = ResolveRowOverrides(node, i);
                 row.IsRightToLeft = FlowDirection == FlowDirection.RightToLeft;
                 row.Background = ResolveRowBackground(i, node);
                 row.BindNode(node);
@@ -251,15 +266,63 @@ namespace TreeGrid.Wpf.View
             }
         }
 
+        private QueryRowStyleEventArgs ResolveRowOverrides(TreeNode node, int rowIndex)
+        {
+            if (RowStyleResolver == null)
+                return null;
+
+            var overrides = RowStyleResolver(node, rowIndex);
+            return overrides != null && overrides.HasOverrides ? overrides : null;
+        }
+
+        /// <summary>
+        /// Row background precedence: conditional override, then selection, then hover,
+        /// then the alternating stripe, then the plain row brush.
+        /// </summary>
         private Brush ResolveRowBackground(int index, TreeNode node)
         {
+            var overrides = ResolveRowOverrides(node, index);
+
+            if (overrides?.Background != null)
+                return overrides.Background;
+
             if (node.IsSelected && SelectedRowBrush != null)
                 return SelectedRowBrush;
+
+            if (index == HoveredRowIndex && VisualStyle?.HoverRowBackground != null)
+                return VisualStyle.HoverRowBackground;
 
             if (ShowAlternatingRows && index % 2 == 1 && AlternatingRowBrush != null)
                 return AlternatingRowBrush;
 
-            return Brushes.Transparent;
+            return VisualStyle?.RowBackground ?? Brushes.Transparent;
+        }
+
+        protected override void OnMouseMove(System.Windows.Input.MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+
+            if (VisualStyle?.HoverRowBackground == null)
+                return;
+
+            var index = RowIndexFromPoint(e.GetPosition(this));
+
+            if (index == HoveredRowIndex)
+                return;
+
+            HoveredRowIndex = index;
+            RefreshRowStates();
+        }
+
+        protected override void OnMouseLeave(System.Windows.Input.MouseEventArgs e)
+        {
+            base.OnMouseLeave(e);
+
+            if (HoveredRowIndex < 0)
+                return;
+
+            HoveredRowIndex = -1;
+            RefreshRowStates();
         }
 
         private void ResetRowsInternal()

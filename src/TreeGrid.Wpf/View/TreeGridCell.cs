@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using TreeGrid.Wpf.Columns;
 using TreeGrid.Wpf.Data;
 
@@ -104,6 +105,26 @@ namespace TreeGrid.Wpf.View
 
         public static readonly DependencyProperty IsMergedCellProperty = DependencyProperty.Register(
             nameof(IsMergedCell), typeof(bool), typeof(TreeGridCell), new PropertyMetadata(false));
+
+        // Brushes the template's triggers need. They cannot come from a theme
+        // dictionary because they must be overridable per grid instance.
+        public static readonly DependencyProperty GridLineBrushProperty = DependencyProperty.Register(
+            nameof(GridLineBrush), typeof(Brush), typeof(TreeGridCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty ShowVerticalGridLineProperty = DependencyProperty.Register(
+            nameof(ShowVerticalGridLine), typeof(bool), typeof(TreeGridCell), new PropertyMetadata(true));
+
+        public static readonly DependencyProperty CurrentCellBorderBrushProperty = DependencyProperty.Register(
+            nameof(CurrentCellBorderBrush), typeof(Brush), typeof(TreeGridCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty ErrorBrushProperty = DependencyProperty.Register(
+            nameof(ErrorBrush), typeof(Brush), typeof(TreeGridCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty EditorBackgroundProperty = DependencyProperty.Register(
+            nameof(EditorBackground), typeof(Brush), typeof(TreeGridCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty ExpanderGlyphBrushProperty = DependencyProperty.Register(
+            nameof(ExpanderGlyphBrush), typeof(Brush), typeof(TreeGridCell), new PropertyMetadata(null));
 
         static TreeGridCell()
         {
@@ -230,6 +251,42 @@ namespace TreeGrid.Wpf.View
             set => SetValue(ErrorMessageProperty, value);
         }
 
+        public Brush GridLineBrush
+        {
+            get => (Brush)GetValue(GridLineBrushProperty);
+            set => SetValue(GridLineBrushProperty, value);
+        }
+
+        public bool ShowVerticalGridLine
+        {
+            get => (bool)GetValue(ShowVerticalGridLineProperty);
+            set => SetValue(ShowVerticalGridLineProperty, value);
+        }
+
+        public Brush CurrentCellBorderBrush
+        {
+            get => (Brush)GetValue(CurrentCellBorderBrushProperty);
+            set => SetValue(CurrentCellBorderBrushProperty, value);
+        }
+
+        public Brush ErrorBrush
+        {
+            get => (Brush)GetValue(ErrorBrushProperty);
+            set => SetValue(ErrorBrushProperty, value);
+        }
+
+        public Brush EditorBackground
+        {
+            get => (Brush)GetValue(EditorBackgroundProperty);
+            set => SetValue(EditorBackgroundProperty, value);
+        }
+
+        public Brush ExpanderGlyphBrush
+        {
+            get => (Brush)GetValue(ExpanderGlyphBrushProperty);
+            set => SetValue(ExpanderGlyphBrushProperty, value);
+        }
+
         public TreeGridColumn Column { get; internal set; }
 
         public TreeNode Node { get; internal set; }
@@ -299,6 +356,32 @@ namespace TreeGrid.Wpf.View
         {
             e.Handled = true;
             RaiseEvent(new TreeNodeRoutedEventArgs(CellValueToggleEvent, Node));
+        }
+
+        /// <summary>
+        /// Pushes the grid's resolved appearance onto this cell. Font properties are
+        /// inherited by the template's children, so setting them here is enough.
+        /// </summary>
+        internal void ApplyVisualStyle(Styling.TreeGridVisualStyle style)
+        {
+            if (style == null)
+                return;
+
+            Foreground = style.CellForeground;
+            FontSize = style.CellFontSize;
+            FontWeight = style.CellFontWeight;
+
+            if (style.CellFontFamily != null)
+                FontFamily = style.CellFontFamily;
+
+            Padding = style.CellPadding;
+
+            GridLineBrush = style.GridLineBrush;
+            ShowVerticalGridLine = style.ShowVerticalGridLines;
+            CurrentCellBorderBrush = style.CurrentCellBorderBrush;
+            ErrorBrush = style.ErrorBrush;
+            EditorBackground = style.EditorBackground;
+            ExpanderGlyphBrush = style.ExpanderGlyphBrush;
         }
 
         /// <summary>Opens an editor inside this cell.</summary>
