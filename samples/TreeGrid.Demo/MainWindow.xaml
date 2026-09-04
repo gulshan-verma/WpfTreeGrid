@@ -70,54 +70,54 @@
                     <TextBlock Text="SELECTION" Style="{StaticResource SectionHeader}" />
                     <TextBlock Text="Mode" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding SelectionModes}"
-                              SelectedItem="{Binding ElementName=Grid, Path=SelectionMode, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=SelectionMode, Mode=TwoWay}" />
                     <TextBlock Text="Unit" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding SelectionUnits}"
-                              SelectedItem="{Binding ElementName=Grid, Path=SelectionUnit, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=SelectionUnit, Mode=TwoWay}" />
                     <CheckBox Content="Checkbox selection"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowCheckBoxSelection, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowCheckBoxSelection, Mode=TwoWay}" />
                     <TextBlock Text="Cascade" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding CascadeModes}"
-                              SelectedItem="{Binding ElementName=Grid, Path=CheckBoxCascadeMode, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=CheckBoxCascadeMode, Mode=TwoWay}" />
 
                     <TextBlock Text="SORT AND FILTER" Style="{StaticResource SectionHeader}" />
                     <CheckBox Content="Allow sorting"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowSorting, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowSorting, Mode=TwoWay}" />
                     <CheckBox Content="Allow multi-sort (Ctrl+click)"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowMultiSort, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowMultiSort, Mode=TwoWay}" />
                     <CheckBox Content="Show sort order badges"
-                              IsChecked="{Binding ElementName=Grid, Path=ShowSortNumbers, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=ShowSortNumbers, Mode=TwoWay}" />
                     <CheckBox Content="Allow filtering"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowFiltering, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowFiltering, Mode=TwoWay}" />
                     <TextBlock Text="Filter node mode" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding FilterNodeModes}"
-                              SelectedItem="{Binding ElementName=Grid, Path=FilterNodeMode, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=FilterNodeMode, Mode=TwoWay}" />
                     <CheckBox Content="Expand nodes on filtering"
-                              IsChecked="{Binding ElementName=Grid, Path=ExpandNodesOnFiltering, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=ExpandNodesOnFiltering, Mode=TwoWay}" />
 
                     <TextBlock Text="EDITING" Style="{StaticResource SectionHeader}" />
                     <CheckBox Content="Allow editing"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowEditing, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowEditing, Mode=TwoWay}" />
                     <TextBlock Text="Edit trigger" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding EditTriggers}"
-                              SelectedItem="{Binding ElementName=Grid, Path=EditTrigger, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=EditTrigger, Mode=TwoWay}" />
                     <TextBlock Text="Validation mode" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding ValidationModes}"
-                              SelectedItem="{Binding ElementName=Grid, Path=ValidationMode, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=ValidationMode, Mode=TwoWay}" />
 
                     <TextBlock Text="COLUMNS" Style="{StaticResource SectionHeader}" />
                     <CheckBox Content="Allow resizing"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowColumnResizing, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowColumnResizing, Mode=TwoWay}" />
                     <CheckBox Content="Allow reordering"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowColumnReordering, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowColumnReordering, Mode=TwoWay}" />
                     <CheckBox Content="Column virtualization"
-                              IsChecked="{Binding ElementName=Grid, Path=EnableColumnVirtualization, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=EnableColumnVirtualization, Mode=TwoWay}" />
                     <TextBlock Text="Frozen columns (left)" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding FreezeCounts}"
-                              SelectedItem="{Binding ElementName=Grid, Path=FrozenColumnCount, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=FrozenColumnCount, Mode=TwoWay}" />
                     <TextBlock Text="Frozen columns (right)" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding FreezeCounts}"
-                              SelectedItem="{Binding ElementName=Grid, Path=FooterColumnCount, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=FooterColumnCount, Mode=TwoWay}" />
                     <Button Content="Restore hidden columns" Margin="0,6,0,0" Padding="6,3"
                             Click="OnRestoreColumns" />
 
@@ -125,60 +125,82 @@
                     <CheckBox Content="Stacked headers" x:Name="StackedHeaderBox"
                               Checked="OnStackedHeadersChanged" Unchecked="OnStackedHeadersChanged" />
                     <CheckBox Content="Alternating rows"
-                              IsChecked="{Binding ElementName=Grid, Path=ShowAlternatingRows, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=ShowAlternatingRows, Mode=TwoWay}" />
                     <CheckBox Content="Right-to-left" x:Name="RtlBox"
                               Checked="OnRtlChanged" Unchecked="OnRtlChanged" />
                     <CheckBox Content="Dark theme" x:Name="DarkThemeBox"
                               Checked="OnThemeChanged" Unchecked="OnThemeChanged" />
 
+                    <TextBlock Text="GROUPING" Style="{StaticResource SectionHeader}" />
+                    <CheckBox Content="Allow grouping"
+                              IsChecked="{Binding ElementName=Tree, Path=AllowGrouping, Mode=TwoWay}" />
+                    <CheckBox Content="Show group panel"
+                              IsChecked="{Binding ElementName=Tree, Path=ShowGroupDropArea, Mode=TwoWay}" />
+                    <CheckBox Content="Show item counts"
+                              IsChecked="{Binding ElementName=Tree, Path=ShowGroupItemCount, Mode=TwoWay}" />
+                    <CheckBox Content="Auto-expand new groups"
+                              IsChecked="{Binding ElementName=Tree, Path=AutoExpandGroups, Mode=TwoWay}" />
+                    <CheckBox Content="Show footer"
+                              IsChecked="{Binding ElementName=Tree, Path=ShowFooter, Mode=TwoWay}" />
+                    <CheckBox Content="Log grouping events" x:Name="LogGroupEventsBox" IsChecked="True" />
+                    <TextBlock Text="Drag a column header onto the panel to group. Drag chips to reorder, click one to flip its direction, × to ungroup."
+                               TextWrapping="Wrap" FontSize="10"
+                               Foreground="{DynamicResource TreeGrid.ExpanderGlyph}" Margin="0,2,0,0" />
+                    <UniformGrid Columns="2" Margin="0,4,0,0">
+                        <Button Content="Group: Title" Margin="0,0,3,3" Padding="4,3" Click="OnGroupByTitle" />
+                        <Button Content="+ Available" Margin="3,0,0,3" Padding="4,3" Click="OnGroupByAvailable" />
+                        <Button Content="Expand groups" Margin="0,0,3,0" Padding="4,3" Click="OnExpandGroups" />
+                        <Button Content="Ungroup all" Margin="3,0,0,0" Padding="4,3" Click="OnClearGrouping" />
+                    </UniformGrid>
+
                     <TextBlock Text="APPEARANCE" Style="{StaticResource SectionHeader}" />
                     <TextBlock Text="Header background" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding Palette}"
-                              SelectedItem="{Binding ElementName=Grid, Path=HeaderBackground, Mode=TwoWay}"
+                              SelectedItem="{Binding ElementName=Tree, Path=HeaderBackground, Mode=TwoWay}"
                               ItemTemplate="{StaticResource SwatchTemplate}" />
                     <TextBlock Text="Header foreground" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding Palette}"
-                              SelectedItem="{Binding ElementName=Grid, Path=HeaderForeground, Mode=TwoWay}"
+                              SelectedItem="{Binding ElementName=Tree, Path=HeaderForeground, Mode=TwoWay}"
                               ItemTemplate="{StaticResource SwatchTemplate}" />
                     <TextBlock Text="Selected row background" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding Palette}"
-                              SelectedItem="{Binding ElementName=Grid, Path=SelectedRowBackground, Mode=TwoWay}"
+                              SelectedItem="{Binding ElementName=Tree, Path=SelectedRowBackground, Mode=TwoWay}"
                               ItemTemplate="{StaticResource SwatchTemplate}" />
                     <TextBlock Text="Hover row background" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding Palette}"
-                              SelectedItem="{Binding ElementName=Grid, Path=HoverRowBackground, Mode=TwoWay}"
+                              SelectedItem="{Binding ElementName=Tree, Path=HoverRowBackground, Mode=TwoWay}"
                               ItemTemplate="{StaticResource SwatchTemplate}" />
                     <TextBlock Text="Grid line colour" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding Palette}"
-                              SelectedItem="{Binding ElementName=Grid, Path=GridLineBrush, Mode=TwoWay}"
+                              SelectedItem="{Binding ElementName=Tree, Path=GridLineBrush, Mode=TwoWay}"
                               ItemTemplate="{StaticResource SwatchTemplate}" />
                     <TextBlock Text="Grid lines" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding GridLineOptions}"
-                              SelectedItem="{Binding ElementName=Grid, Path=GridLinesVisibility, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=GridLinesVisibility, Mode=TwoWay}" />
                     <TextBlock Text="Header font weight" Style="{StaticResource FieldLabel}" />
-                    <ComboBox ItemsSource="{Binding FontWeights}"
-                              SelectedItem="{Binding ElementName=Grid, Path=HeaderFontWeight, Mode=TwoWay}" />
+                    <ComboBox ItemsSource="{Binding FontWeightOptions}"
+                              SelectedItem="{Binding ElementName=Tree, Path=HeaderFontWeight, Mode=TwoWay}" />
                     <TextBlock Text="Font family" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding FontFamilies}"
-                              SelectedItem="{Binding ElementName=Grid, Path=CellFontFamily, Mode=TwoWay}" />
+                              SelectedItem="{Binding ElementName=Tree, Path=CellFontFamily, Mode=TwoWay}" />
 
                     <TextBlock Style="{StaticResource FieldLabel}"
                                Text="{Binding ElementName=CellFontSlider, Path=Value, StringFormat='Cell font size: {0:F0}'}" />
                     <Slider x:Name="CellFontSlider" Minimum="9" Maximum="20" TickFrequency="1"
                             IsSnapToTickEnabled="True"
-                            Value="{Binding ElementName=Grid, Path=CellFontSize, Mode=TwoWay}" />
+                            Value="{Binding ElementName=Tree, Path=CellFontSize, Mode=TwoWay}" />
 
                     <TextBlock Style="{StaticResource FieldLabel}"
                                Text="{Binding ElementName=RowHeightSlider, Path=Value, StringFormat='Row height: {0:F0}'}" />
                     <Slider x:Name="RowHeightSlider" Minimum="20" Maximum="56" TickFrequency="2"
                             IsSnapToTickEnabled="True"
-                            Value="{Binding ElementName=Grid, Path=RowHeight, Mode=TwoWay}" />
+                            Value="{Binding ElementName=Tree, Path=RowHeight, Mode=TwoWay}" />
 
                     <TextBlock Style="{StaticResource FieldLabel}"
                                Text="{Binding ElementName=IndentSlider, Path=Value, StringFormat='Indent per level: {0:F0}'}" />
                     <Slider x:Name="IndentSlider" Minimum="8" Maximum="48" TickFrequency="2"
                             IsSnapToTickEnabled="True"
-                            Value="{Binding ElementName=Grid, Path=IndentPerLevel, Mode=TwoWay}" />
+                            Value="{Binding ElementName=Tree, Path=IndentPerLevel, Mode=TwoWay}" />
 
                     <CheckBox Content="Conditional formatting" x:Name="ConditionalBox"
                               Checked="OnConditionalChanged" Unchecked="OnConditionalChanged" />
@@ -190,13 +212,13 @@
 
                     <TextBlock Text="INTERACTION" Style="{StaticResource SectionHeader}" />
                     <CheckBox Content="Row drag and drop"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowRowDragDrop, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowRowDragDrop, Mode=TwoWay}" />
                     <CheckBox Content="Default context menus"
-                              IsChecked="{Binding ElementName=Grid, Path=ShowDefaultContextMenus, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=ShowDefaultContextMenus, Mode=TwoWay}" />
                     <CheckBox Content="Allow copy (Ctrl+C)"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowCopy, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowCopy, Mode=TwoWay}" />
                     <CheckBox Content="Allow paste (Ctrl+V)"
-                              IsChecked="{Binding ElementName=Grid, Path=AllowPaste, Mode=TwoWay}" />
+                              IsChecked="{Binding ElementName=Tree, Path=AllowPaste, Mode=TwoWay}" />
 
                     <TextBlock Text="ACTIONS" Style="{StaticResource SectionHeader}" />
                     <UniformGrid Columns="2">
@@ -225,17 +247,17 @@
                     </ComboBox>
 
                     <TextBlock VerticalAlignment="Center" Margin="16,0,0,0"
-                               Text="{Binding ElementName=Grid, Path=View.Count, StringFormat='Rows: {0}'}" />
+                               Text="{Binding ElementName=Tree, Path=View.Count, StringFormat='Rows: {0}'}" />
                     <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
-                               Text="{Binding ElementName=Grid, Path=SelectedItems.Count, StringFormat='Selected: {0}'}" />
+                               Text="{Binding ElementName=Tree, Path=SelectedItems.Count, StringFormat='Selected: {0}'}" />
                     <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
-                               Text="{Binding ElementName=Grid, Path=CheckedItems.Count, StringFormat='Checked: {0}'}" />
+                               Text="{Binding ElementName=Tree, Path=CheckedItems.Count, StringFormat='Checked: {0}'}" />
                     <TextBlock x:Name="StatusText" VerticalAlignment="Center" Margin="12,0,0,0"
                                Foreground="{DynamicResource TreeGrid.ExpanderGlyph}" />
                 </StackPanel>
             </Border>
 
-            <tg:TreeGridControl x:Name="Grid"
+            <tg:TreeGridControl x:Name="Tree"
                                 AutoGenerateColumns="False"
                                 ShowAlternatingRows="True"
                                 AllowCheckBoxSelection="True"
@@ -251,6 +273,8 @@
                                 AllowCopy="True"
                                 AllowPaste="True"
                                 ShowDefaultContextMenus="True"
+                                AllowGrouping="True"
+                                ShowGroupDropArea="True"
                                 FrozenColumnCount="1">
                 <tg:TreeGridControl.Columns>
                     <cols:TreeGridTextColumn MappingName="FirstName" HeaderText="First Name" Width="220" />

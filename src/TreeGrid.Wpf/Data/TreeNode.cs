@@ -25,8 +25,20 @@ namespace TreeGrid.Wpf.Data
             ChildNodes = new List<TreeNode>();
         }
 
-        /// <summary>The underlying business object.</summary>
+        /// <summary>The underlying business object. Null for group headers.</summary>
         public object Item { get; }
+
+        /// <summary>
+        /// Set when this node is a synthetic group header rather than a record.
+        /// Group headers carry no data item, so anything that reads cell values must
+        /// check this first.
+        /// </summary>
+        public Grouping.GroupInfo GroupInfo { get; internal set; }
+
+        public bool IsGroupHeader => GroupInfo != null;
+
+        /// <summary>Caption shown on a group header row.</summary>
+        public string GroupCaption { get; internal set; }
 
         public TreeNode ParentNode { get; internal set; }
 

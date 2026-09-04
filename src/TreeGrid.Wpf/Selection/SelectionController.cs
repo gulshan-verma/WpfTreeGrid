@@ -55,6 +55,13 @@ namespace TreeGrid.Wpf.Selection
 
         public bool IsSelected(TreeNode node) => node != null && _selected.Contains(node);
 
+        /// <summary>
+        /// Group headers are selectable so they can be highlighted and navigated, but
+        /// they carry no data item. Adding their null Item to SelectedItems would put
+        /// nulls in a collection the host enumerates, so they are tracked as nodes only.
+        /// </summary>
+        private static bool TracksItem(TreeNode node) => node?.Item != null;
+
         // ------------------------------------------------------------- pointer
 
         public void HandlePointerDown(int rowIndex, int columnIndex, ModifierKeys modifiers)
@@ -208,12 +215,16 @@ namespace TreeGrid.Wpf.Selection
             for (var i = 0; i < view.Count; i++)
             {
                 var node = view[i];
-                if (_selected.Add(node))
-                {
-                    node.IsSelected = true;
-                    _selectedItems.Add(node.Item);
-                    added.Add(node.Item);
-                }
+                if (!_selected.Add(node))
+                    continue;
+
+                node.IsSelected = true;
+
+                if (!TracksItem(node))
+                    continue;
+
+                _selectedItems.Add(node.Item);
+                added.Add(node.Item);
             }
 
             EndBatch(added, Array.Empty<object>());
@@ -252,8 +263,13 @@ namespace TreeGrid.Wpf.Selection
                 if (_selected.Add(node))
                 {
                     node.IsSelected = true;
-                    _selectedItems.Add(node.Item);
-                    added.Add(node.Item);
+
+                    // Group headers highlight but are not tracked as items.
+                    if (TracksItem(node))
+                    {
+                        _selectedItems.Add(node.Item);
+                        added.Add(node.Item);
+                    }
                 }
 
                 EndBatch(added, Array.Empty<object>());
@@ -270,6 +286,13 @@ namespace TreeGrid.Wpf.Selection
 
             BeginBatch();
             node.IsSelected = false;
+
+            if (!TracksItem(node))
+            {
+                EndBatch(Array.Empty<object>(), Array.Empty<object>());
+                return;
+            }
+
             _selectedItems.Remove(node.Item);
             EndBatch(Array.Empty<object>(), new[] { node.Item });
         }
@@ -295,7 +318,9 @@ namespace TreeGrid.Wpf.Selection
                     continue;
 
                 existing.IsSelected = false;
-                removed.Add(existing.Item);
+
+                if (TracksItem(existing))
+                    removed.Add(existing.Item);
             }
 
             var wasSelected = _selected.Contains(node);
@@ -305,10 +330,14 @@ namespace TreeGrid.Wpf.Selection
 
             _selected.Add(node);
             node.IsSelected = true;
-            _selectedItems.Add(node.Item);
 
-            if (!wasSelected)
-                added.Add(node.Item);
+            if (TracksItem(node))
+            {
+                _selectedItems.Add(node.Item);
+
+                if (!wasSelected)
+                    added.Add(node.Item);
+            }
 
             EndBatch(added, removed);
         }
@@ -343,7 +372,9 @@ namespace TreeGrid.Wpf.Selection
                     if (index < start || index > end)
                     {
                         existing.IsSelected = false;
-                        removed.Add(existing.Item);
+
+                        if (TracksItem(existing))
+                            removed.Add(existing.Item);
                     }
                 }
 
@@ -357,19 +388,26 @@ namespace TreeGrid.Wpf.Selection
                     _selectedItems.Clear();
 
                     foreach (var node in _selected)
-                        _selectedItems.Add(node.Item);
+                    {
+                        if (TracksItem(node))
+                            _selectedItems.Add(node.Item);
+                    }
                 }
             }
 
             for (var i = start; i <= end; i++)
             {
                 var node = view[i];
-                if (_selected.Add(node))
-                {
-                    node.IsSelected = true;
-                    _selectedItems.Add(node.Item);
-                    added.Add(node.Item);
-                }
+                if (!_selected.Add(node))
+                    continue;
+
+                node.IsSelected = true;
+
+                if (!TracksItem(node))
+                    continue;
+
+                _selectedItems.Add(node.Item);
+                added.Add(node.Item);
             }
 
             EndBatch(added, removed);

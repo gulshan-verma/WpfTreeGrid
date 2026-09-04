@@ -62,29 +62,4 @@ namespace TreeGrid.Wpf.Columns
 
         public TreeGridColumn Column { get; }
     }
-
-    public sealed class ColumnDragEventArgs : RoutedEventArgs
-    {
-        public ColumnDragEventArgs(RoutedEvent routedEvent, TreeGridColumn column, Point screenPoint, ColumnDragPhase phase)
-            : base(routedEvent)
-        {
-            Column = column;
-            ScreenPoint = screenPoint;
-            Phase = phase;
-        }
-
-        public TreeGridColumn Column { get; }
-
-        public Point ScreenPoint { get; }
-
-        public ColumnDragPhase Phase { get; }
-    }
-
-    public enum ColumnDragPhase
-    {
-        Started,
-        Moved,
-        Completed,
-        Cancelled
-    }
 }

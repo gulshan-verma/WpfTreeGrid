@@ -108,7 +108,9 @@ namespace TreeGrid.Wpf.DragDropSupport
 
             foreach (var node in nodes)
             {
-                if (node != null)
+                // Group headers are synthetic: they carry no record and their position
+                // is derived from the grouping, so moving one is meaningless.
+                if (node != null && !node.IsGroupHeader)
                     _dragging.Add(node);
             }
 
@@ -158,6 +160,11 @@ namespace TreeGrid.Wpf.DragDropSupport
         private bool EvaluateAllowed()
         {
             if (TargetNode == null)
+                return false;
+
+            // Dropping beside a group header would make a record a sibling of the
+            // group, and dropping into one would put it outside its own grouping key.
+            if (TargetNode.IsGroupHeader)
                 return false;
 
             // Dropping a node into its own subtree would detach that subtree from the
@@ -224,9 +231,12 @@ namespace TreeGrid.Wpf.DragDropSupport
         {
             var moved = false;
 
+            if (target == null || target.IsGroupHeader)
+                return false;
+
             foreach (var node in nodes)
             {
-                if (ReferenceEquals(node, target) || target.IsDescendantOf(node))
+                if (node.IsGroupHeader || ReferenceEquals(node, target) || target.IsDescendantOf(node))
                     continue;
 
                 var previousParent = node.ParentNode;

@@ -496,22 +496,21 @@ namespace TreeGrid.Wpf.View
     /// </summary>
     public class TreeGridHeaderCell : Control
     {
-        private const double DragThreshold = 4d;
-
-        public static readonly RoutedEvent HeaderClickEvent = EventManager.RegisterRoutedEvent(
-            "HeaderClick", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(TreeGridHeaderCell));
-
         public static readonly RoutedEvent ColumnResizeEvent = EventManager.RegisterRoutedEvent(
             "ColumnResize", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(TreeGridHeaderCell));
 
         public static readonly RoutedEvent ColumnAutoFitEvent = EventManager.RegisterRoutedEvent(
             "ColumnAutoFit", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(TreeGridHeaderCell));
 
-        public static readonly RoutedEvent ColumnDragEvent = EventManager.RegisterRoutedEvent(
-            "ColumnDrag", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(TreeGridHeaderCell));
-
         public static readonly RoutedEvent FilterButtonClickEvent = EventManager.RegisterRoutedEvent(
             "FilterButtonClick", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(TreeGridHeaderCell));
+
+        /// <summary>
+        /// Reports that the pointer went down on this header. The grid owns the gesture
+        /// from here - see the note on the handler below.
+        /// </summary>
+        public static readonly RoutedEvent HeaderPointerDownEvent = EventManager.RegisterRoutedEvent(
+            "HeaderPointerDown", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(TreeGridHeaderCell));
 
         public static readonly DependencyProperty HeaderTextProperty = DependencyProperty.Register(
             nameof(HeaderText), typeof(string), typeof(TreeGridHeaderCell), new PropertyMetadata(string.Empty));
@@ -601,9 +600,6 @@ namespace TreeGrid.Wpf.View
 
         private Thumb _gripper;
         private ButtonBase _filterButton;
-        private Point _dragOrigin;
-        private bool _isDragging;
-        private bool _pointerDown;
 
         public override void OnApplyTemplate()
         {
@@ -688,73 +684,48 @@ namespace TreeGrid.Wpf.View
 
         // ------------------------------------------------------ reorder gesture
 
+        /// <summary>
+        /// Reports the press and nothing more.
+        /// <para>
+        /// The gesture itself lives on the grid. Header cells are pooled and recycled,
+        /// and recycling removes them from the visual tree - which silently drops any
+        /// mouse capture they hold. A drag anchored here died the moment anything
+        /// triggered a relayout, and the release then fell through to the click path,
+        /// so dragging a column sorted it instead.
+        /// </para>
+        /// </summary>
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
 
-            // Clicks on the filter button open the popup; they are not a reorder gesture.
+            if (Column == null)
+                return;
+
+            // The gripper and the filter button own their own gestures.
             if (_filterButton != null && _filterButton.IsMouseOver)
                 return;
 
-            _pointerDown = true;
-            _dragOrigin = e.GetPosition(this);
-            CaptureMouse();
-        }
+            if (_gripper != null && _gripper.IsMouseOver)
+                return;
 
-        protected override void OnMouseMove(MouseEventArgs e)
+            RaiseEvent(new HeaderPointerEventArgs(
+                HeaderPointerDownEvent, Column, PointToScreen(e.GetPosition(this))));
+        }
+    }
+
+    public sealed class HeaderPointerEventArgs : RoutedEventArgs
+    {
+        public HeaderPointerEventArgs(RoutedEvent routedEvent, TreeGridColumn column, Point screenPoint)
+            : base(routedEvent)
         {
-            base.OnMouseMove(e);
-
-            if (!_pointerDown || Column == null)
-                return;
-
-            var position = e.GetPosition(this);
-
-            if (!_isDragging)
-            {
-                if (Math.Abs(position.X - _dragOrigin.X) < DragThreshold)
-                    return;
-
-                _isDragging = true;
-                RaiseEvent(new ColumnDragEventArgs(ColumnDragEvent, Column, PointToScreen(position), ColumnDragPhase.Started));
-                return;
-            }
-
-            RaiseEvent(new ColumnDragEventArgs(ColumnDragEvent, Column, PointToScreen(position), ColumnDragPhase.Moved));
+            Column = column;
+            ScreenPoint = screenPoint;
         }
 
-        protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
-        {
-            base.OnMouseLeftButtonUp(e);
+        public TreeGridColumn Column { get; }
 
-            if (!_pointerDown)
-                return;
-
-            var position = e.GetPosition(this);
-            ReleaseMouseCapture();
-            _pointerDown = false;
-
-            if (_isDragging)
-            {
-                _isDragging = false;
-                RaiseEvent(new ColumnDragEventArgs(ColumnDragEvent, Column, PointToScreen(position), ColumnDragPhase.Completed));
-                return;
-            }
-
-            RaiseEvent(new ColumnRoutedEventArgs(HeaderClickEvent, Column));
-        }
-
-        protected override void OnLostMouseCapture(MouseEventArgs e)
-        {
-            base.OnLostMouseCapture(e);
-
-            if (!_isDragging)
-                return;
-
-            _isDragging = false;
-            _pointerDown = false;
-            RaiseEvent(new ColumnDragEventArgs(ColumnDragEvent, Column, default, ColumnDragPhase.Cancelled));
-        }
+        /// <summary>Press position in screen coordinates, so the grid can measure the drag.</summary>
+        public Point ScreenPoint { get; }
     }
 
     public enum ListSortDirectionOrNone

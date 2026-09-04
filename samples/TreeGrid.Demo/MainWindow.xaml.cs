@@ -18,6 +18,7 @@ using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 using TreeGrid.Wpf.Selection;
+using TreeGrid.Wpf.Grouping;
 using TreeGrid.Wpf.Styling;
 using TreeGrid.Wpf.Validation;
 using TreeGrid.Wpf;
@@ -37,6 +38,11 @@ namespace TreeGrid.Demo
             // (RelativeSource, ElementName) never resolve against them. Assigning in
             // code-behind is the reliable route.
             TitleColumn.ItemsSource = Titles;
+
+            // Grouping drag-and-drop reporting.
+            Tree.GroupingChanging += OnGroupingChanging;
+            Tree.GroupingChanged += OnGroupingChanged;
+            Tree.GroupDragOver += OnGroupDragOver;
 
             LoadHierarchical();
         }
@@ -88,7 +94,7 @@ namespace TreeGrid.Demo
             new FontFamily("Verdana")
         };
 
-        public FontWeight[] FontWeights { get; } =
+        public FontWeight[] FontWeightOptions { get; } =
         {
             System.Windows.FontWeights.Normal,
             System.Windows.FontWeights.SemiBold,
@@ -99,7 +105,7 @@ namespace TreeGrid.Demo
 
         private void OnSourceChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (Grid == null)
+            if (Tree == null)
                 return;
 
             switch (SourceBox.SelectedIndex)
@@ -120,10 +126,10 @@ namespace TreeGrid.Demo
         {
             ResetSource();
 
-            Grid.ChildPropertyName = "Children";
+            Tree.ChildPropertyName = "Children";
             ConfigureColumns("FirstName", "LastName", "Title", "Salary", "Available", "Completion", "ProfileUrl");
 
-            Grid.ItemsSource = DemoData.CreateHierarchy();
+            Tree.ItemsSource = DemoData.CreateHierarchy();
             StatusText.Text = "Hierarchical - child collection binding";
         }
 
@@ -131,11 +137,11 @@ namespace TreeGrid.Demo
         {
             ResetSource();
 
-            Grid.IdPropertyName = "Id";
-            Grid.ParentIdPropertyName = "ParentId";
+            Tree.IdPropertyName = "Id";
+            Tree.ParentIdPropertyName = "ParentId";
             ConfigureColumns("Name", "Owner", "PercentComplete", "Start", "Id");
 
-            Grid.ItemsSource = DemoData.CreateSelfRelational();
+            Tree.ItemsSource = DemoData.CreateSelfRelational();
             StatusText.Text = "Self-relational - 5,000 rows joined by Id / ParentId";
         }
 
@@ -143,25 +149,26 @@ namespace TreeGrid.Demo
         {
             ResetSource();
 
-            Grid.DataSource.HasChildNodesResolver = item => item is FolderItem folder && folder.IsFolder;
-            Grid.DataSource.RequestTreeItemsAsync = LoadFolderAsync;
+            Tree.DataSource.HasChildNodesResolver = item => item is FolderItem folder && folder.IsFolder;
+            Tree.DataSource.RequestTreeItemsAsync = LoadFolderAsync;
 
             ConfigureColumns("Name", "Kind", "SizeBytes", "Depth");
 
-            Grid.ItemsSource = new ObservableCollection<FolderItem>(DemoData.CreateFolderChildren(null, 12));
+            Tree.ItemsSource = new ObservableCollection<FolderItem>(DemoData.CreateFolderChildren(null, 12));
             StatusText.Text = "Load on demand - size unknown, filter offers conditions only";
         }
 
         private void ResetSource()
         {
-            Grid.ItemsSource = null;
-            Grid.ChildPropertyName = null;
-            Grid.IdPropertyName = null;
-            Grid.ParentIdPropertyName = null;
-            Grid.DataSource.RequestTreeItemsAsync = null;
-            Grid.DataSource.HasChildNodesResolver = null;
-            Grid.ClearSorting();
-            Grid.ClearFilters();
+            Tree.ItemsSource = null;
+            Tree.ChildPropertyName = null;
+            Tree.IdPropertyName = null;
+            Tree.ParentIdPropertyName = null;
+            Tree.DataSource.RequestTreeItemsAsync = null;
+            Tree.DataSource.HasChildNodesResolver = null;
+            Tree.ClearGrouping();
+            Tree.ClearSorting();
+            Tree.ClearFilters();
         }
 
         /// <summary>
@@ -170,18 +177,18 @@ namespace TreeGrid.Demo
         /// </summary>
         private void ConfigureColumns(params string[] mappingNames)
         {
-            foreach (var column in Grid.Columns)
+            foreach (var column in Tree.Columns)
                 column.IsHidden = Array.IndexOf(mappingNames, column.MappingName) < 0;
 
             var known = new System.Collections.Generic.HashSet<string>(mappingNames);
 
-            foreach (var column in Grid.Columns)
+            foreach (var column in Tree.Columns)
                 known.Remove(column.MappingName);
 
             // Add any column this source needs that does not exist yet.
             foreach (var name in known)
             {
-                Grid.Columns.Add(new TreeGridTextColumn
+                Tree.Columns.Add(new TreeGridTextColumn
                 {
                     MappingName = name,
                     HeaderText = name,
@@ -192,7 +199,7 @@ namespace TreeGrid.Demo
 
         private static async Task<IEnumerable> LoadFolderAsync(TreeNode node, CancellationToken token)
         {
-            await System.Threading.Tasks.Task.Delay(450, token);
+            await Task.Delay(450, token);
             return DemoData.CreateFolderChildren(node.Item as FolderItem);
         }
 
@@ -200,10 +207,10 @@ namespace TreeGrid.Demo
 
         private void OnStackedHeadersChanged(object sender, RoutedEventArgs e)
         {
-            if (Grid == null)
+            if (Tree == null)
                 return;
 
-            Grid.StackedHeaderRows.Clear();
+            Tree.StackedHeaderRows.Clear();
 
             if (StackedHeaderBox.IsChecked != true)
                 return;
@@ -228,19 +235,19 @@ namespace TreeGrid.Demo
                 ChildColumns = "Completion,ProfileUrl"
             });
 
-            Grid.StackedHeaderRows.Add(row);
+            Tree.StackedHeaderRows.Add(row);
         }
 
         private void OnRtlChanged(object sender, RoutedEventArgs e)
         {
-            if (Grid == null)
+            if (Tree == null)
                 return;
 
-            Grid.FlowDirection = RtlBox.IsChecked == true
+            Tree.FlowDirection = RtlBox.IsChecked == true
                 ? FlowDirection.RightToLeft
                 : FlowDirection.LeftToRight;
 
-            Grid.RefreshLayout();
+            Tree.RefreshLayout();
         }
 
         /// <summary>
@@ -267,25 +274,69 @@ namespace TreeGrid.Demo
                 merged.Add(replacement);
         }
 
+        // ------------------------------------------------------------- grouping
+
+        private void OnGroupingChanging(object sender, GroupingChangingEventArgs e)
+        {
+            // Cancel here to refuse a grouping change; nothing is applied.
+            if (LogGroupEventsBox.IsChecked == true)
+                StatusText.Text = $"Grouping {e.Action}: {e.ColumnName ?? "(all)"} {e.OldIndex} -> {e.NewIndex}";
+        }
+
+        private void OnGroupingChanged(object sender, GroupingChangedEventArgs e)
+        {
+            if (LogGroupEventsBox.IsChecked != true)
+                return;
+
+            StatusText.Text = e.Action switch
+            {
+                GroupingAction.Grouped => $"Grouped by {e.ColumnName} at level {e.NewIndex + 1} ({e.GroupLevelCount} total)",
+                GroupingAction.Ungrouped => $"Ungrouped {e.ColumnName} ({e.GroupLevelCount} remaining)",
+                GroupingAction.Reordered => $"Moved {e.ColumnName} from level {e.OldIndex + 1} to {e.NewIndex + 1}",
+                GroupingAction.SortDirectionChanged => $"Flipped sort on {e.ColumnName}",
+                GroupingAction.Cleared => "Grouping cleared",
+                _ => StatusText.Text
+            };
+        }
+
+        private void OnGroupDragOver(object sender, GroupDragOverEventArgs e)
+        {
+            if (LogGroupEventsBox.IsChecked == true)
+                StatusText.Text = $"Drop {e.Column?.HeaderText} at level {e.TargetIndex + 1}";
+        }
+
+        private void OnGroupByTitle(object sender, RoutedEventArgs e)
+        {
+            Tree.ClearGrouping();
+            Tree.GroupByColumn("Title");
+        }
+
+        private void OnGroupByAvailable(object sender, RoutedEventArgs e) =>
+            Tree.GroupByColumn("Available");
+
+        private void OnExpandGroups(object sender, RoutedEventArgs e) => Tree.ExpandAllGroups();
+
+        private void OnClearGrouping(object sender, RoutedEventArgs e) => Tree.ClearGrouping();
+
         // ----------------------------------------------------------- appearance
 
         private void OnConditionalChanged(object sender, RoutedEventArgs e)
         {
-            if (Grid == null)
+            if (Tree == null)
                 return;
 
             // Detaching the handler is what turns the feature off: the grid only wires
             // its resolver when the event actually has subscribers.
-            Grid.QueryRowStyle -= OnQueryRowStyle;
-            Grid.QueryCellStyle -= OnQueryCellStyle;
+            Tree.QueryRowStyle -= OnQueryRowStyle;
+            Tree.QueryCellStyle -= OnQueryCellStyle;
 
             if (ConditionalBox.IsChecked == true)
             {
-                Grid.QueryRowStyle += OnQueryRowStyle;
-                Grid.QueryCellStyle += OnQueryCellStyle;
+                Tree.QueryRowStyle += OnQueryRowStyle;
+                Tree.QueryCellStyle += OnQueryCellStyle;
             }
 
-            Grid.RefreshAppearance();
+            Tree.RefreshAppearance();
         }
 
         private void OnQueryRowStyle(object sender, QueryRowStyleEventArgs e)
@@ -319,40 +370,40 @@ namespace TreeGrid.Demo
             // Clearing a property restores the theme fallback, which is not the same as
             // assigning the current theme's value - the grid will follow later theme
             // changes again.
-            Grid.ClearValue(TreeGridControl.HeaderBackgroundProperty);
-            Grid.ClearValue(TreeGridControl.HeaderForegroundProperty);
-            Grid.ClearValue(TreeGridControl.SelectedRowBackgroundProperty);
-            Grid.ClearValue(TreeGridControl.HoverRowBackgroundProperty);
-            Grid.ClearValue(TreeGridControl.GridLineBrushProperty);
-            Grid.ClearValue(TreeGridControl.CellFontFamilyProperty);
-            Grid.ClearValue(TreeGridControl.CellFontSizeProperty);
-            Grid.ClearValue(TreeGridControl.HeaderFontWeightProperty);
-            Grid.ClearValue(TreeGridControl.GridLinesVisibilityProperty);
-            Grid.ClearValue(TreeGridControl.RowHeightProperty);
-            Grid.ClearValue(TreeGridControl.IndentPerLevelProperty);
+            Tree.ClearValue(TreeGridControl.HeaderBackgroundProperty);
+            Tree.ClearValue(TreeGridControl.HeaderForegroundProperty);
+            Tree.ClearValue(TreeGridControl.SelectedRowBackgroundProperty);
+            Tree.ClearValue(TreeGridControl.HoverRowBackgroundProperty);
+            Tree.ClearValue(TreeGridControl.GridLineBrushProperty);
+            Tree.ClearValue(TreeGridControl.CellFontFamilyProperty);
+            Tree.ClearValue(TreeGridControl.CellFontSizeProperty);
+            Tree.ClearValue(TreeGridControl.HeaderFontWeightProperty);
+            Tree.ClearValue(TreeGridControl.GridLinesVisibilityProperty);
+            Tree.ClearValue(TreeGridControl.RowHeightProperty);
+            Tree.ClearValue(TreeGridControl.IndentPerLevelProperty);
 
-            Grid.RefreshAppearance();
+            Tree.RefreshAppearance();
         }
 
         private void OnRestoreColumns(object sender, RoutedEventArgs e)
         {
-            foreach (var column in Grid.Columns)
+            foreach (var column in Tree.Columns)
                 column.IsHidden = false;
         }
 
         // -------------------------------------------------------------- actions
 
-        private void OnExpandAll(object sender, RoutedEventArgs e) => Grid.ExpandAll();
+        private void OnExpandAll(object sender, RoutedEventArgs e) => Tree.ExpandAll();
 
-        private void OnCollapseAll(object sender, RoutedEventArgs e) => Grid.CollapseAll();
+        private void OnCollapseAll(object sender, RoutedEventArgs e) => Tree.CollapseAll();
 
-        private void OnAutoFit(object sender, RoutedEventArgs e) => Grid.AutoFitColumns();
+        private void OnAutoFit(object sender, RoutedEventArgs e) => Tree.AutoFitColumns();
 
-        private void OnClearSort(object sender, RoutedEventArgs e) => Grid.ClearSorting();
+        private void OnClearSort(object sender, RoutedEventArgs e) => Tree.ClearSorting();
 
-        private void OnClearFilters(object sender, RoutedEventArgs e) => Grid.ClearFilters();
+        private void OnClearFilters(object sender, RoutedEventArgs e) => Tree.ClearFilters();
 
-        private void OnSelectAll(object sender, RoutedEventArgs e) => Grid.SelectAll();
+        private void OnSelectAll(object sender, RoutedEventArgs e) => Tree.SelectAll();
 
         private void OnExport(object sender, RoutedEventArgs e)
         {
@@ -375,18 +426,18 @@ namespace TreeGrid.Demo
             switch (Path.GetExtension(dialog.FileName)?.ToLowerInvariant())
             {
                 case ".csv":
-                    Grid.Export(new CsvExporter(), dialog.FileName, options);
+                    Tree.Export(new CsvExporter(), dialog.FileName, options);
                     break;
 
                 case ".pdf":
                     options.HierarchyStyle = HierarchyExportStyle.Indent;
-                    Grid.Export(new PdfExporter(), dialog.FileName, options);
+                    Tree.Export(new PdfExporter(), dialog.FileName, options);
                     break;
 
                 default:
                     // Excel gets native row grouping, so the tree stays collapsible.
                     options.HierarchyStyle = HierarchyExportStyle.Outline;
-                    Grid.Export(new ExcelExporter(), dialog.FileName, options);
+                    Tree.Export(new ExcelExporter(), dialog.FileName, options);
                     break;
             }
 
@@ -395,8 +446,8 @@ namespace TreeGrid.Demo
 
         private void OnBenchmark(object sender, RoutedEventArgs e)
         {
-            var results = GridBenchmark.RunStandardSuite(Grid);
-            results.Add(GridBenchmark.MeasureScroll(Grid));
+            var results = GridBenchmark.RunStandardSuite(Tree);
+            results.Add(GridBenchmark.MeasureScroll(Tree));
 
             MessageBox.Show(GridBenchmark.Format(results), "Benchmark",
                 MessageBoxButton.OK, MessageBoxImage.None);

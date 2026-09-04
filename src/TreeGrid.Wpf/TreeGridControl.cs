@@ -22,6 +22,7 @@ using TreeGrid.Wpf.DragDropSupport;
 using TreeGrid.Wpf.Editing;
 using TreeGrid.Wpf.Export;
 using TreeGrid.Wpf.Filtering;
+using TreeGrid.Wpf.Grouping;
 using TreeGrid.Wpf.Headers;
 using TreeGrid.Wpf.Merging;
 using TreeGrid.Wpf.Selection;
@@ -32,11 +33,15 @@ using TreeGrid.Wpf.View;
 
 namespace TreeGrid.Wpf
 {
+    [TemplatePart(Name = PartFooter, Type = typeof(TreeGridFooterControl))]
+    [TemplatePart(Name = PartGroupDropArea, Type = typeof(GroupDropAreaControl))]
     [TemplatePart(Name = PartHeaderHost, Type = typeof(Border))]
     [TemplatePart(Name = PartScrollViewer, Type = typeof(ScrollViewer))]
     [TemplatePart(Name = PartVisualContainer, Type = typeof(VisualContainer))]
     public class TreeGridControl : Control, ITreeGridColumnHost
     {
+        private const string PartFooter = "PART_Footer";
+        private const string PartGroupDropArea = "PART_GroupDropArea";
         private const string PartHeaderHost = "PART_HeaderHost";
         private const string PartScrollViewer = "PART_ScrollViewer";
         private const string PartVisualContainer = "PART_VisualContainer";
@@ -70,6 +75,17 @@ namespace TreeGrid.Wpf
         private Point _dragOrigin;
         private bool _dragPending;
         private readonly ClipboardController _clipboard = new ClipboardController();
+        private readonly GroupController _groupController = new GroupController();
+        private GroupDropAreaControl _groupDropArea;
+        private TreeGridFooterControl _footer;
+        private List<TreeNode> _ungroupedRoots;
+        private Dictionary<object, TreeNode> _groupedNodeMap;
+        private bool _dropIntoGroupArea;
+        private TreeGridColumn _headerDragColumn;
+        private Point _headerDragOrigin;
+        private bool _headerDragging;
+        private int _groupDropIndex = -1;
+        private GroupingChangedEventArgs _pendingGroupChange;
         private StackPanel _stackedHeaderPanel;
         private readonly List<StackedHeaderRowControl> _stackedRows = new List<StackedHeaderRowControl>();
 
@@ -110,6 +126,12 @@ namespace TreeGrid.Wpf
 
             _dataSource.IncrementalChange += OnIncrementalChange;
 
+            _groupController.Descriptions.CollectionChanged += (s2, e2) =>
+            {
+                _groupDropArea?.Refresh();
+                ApplyGrouping();
+            };
+
             _selection = new SelectionController(() => _dataSource.View, () => _layout.VisibleColumns.Count);
             _selection.SelectionChanged += OnSelectionControllerChanged;
             _selection.CurrentCellChanged += OnCurrentCellChanged;
@@ -118,10 +140,9 @@ namespace TreeGrid.Wpf
             AddHandler(TreeGridCell.ExpanderToggleEvent, new RoutedEventHandler(OnExpanderToggle));
             AddHandler(TreeGridCell.NodeCheckToggleEvent, new RoutedEventHandler(OnNodeCheckToggle));
             AddHandler(TreeGridCell.CellValueToggleEvent, new RoutedEventHandler(OnCellValueToggle));
-            AddHandler(TreeGridHeaderCell.HeaderClickEvent, new RoutedEventHandler(OnHeaderClick));
             AddHandler(TreeGridHeaderCell.ColumnResizeEvent, new RoutedEventHandler(OnColumnResize));
             AddHandler(TreeGridHeaderCell.ColumnAutoFitEvent, new RoutedEventHandler(OnColumnAutoFit));
-            AddHandler(TreeGridHeaderCell.ColumnDragEvent, new RoutedEventHandler(OnColumnDrag));
+            AddHandler(TreeGridHeaderCell.HeaderPointerDownEvent, new RoutedEventHandler(OnHeaderPointerDown));
             AddHandler(TreeGridHeaderCell.FilterButtonClickEvent, new RoutedEventHandler(OnFilterButtonClick));
         }
 
@@ -370,6 +391,40 @@ namespace TreeGrid.Wpf
         public static readonly DependencyProperty ExpanderGlyphBrushProperty = DependencyProperty.Register(
             nameof(ExpanderGlyphBrush), typeof(Brush), typeof(TreeGridControl),
             new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty ShowFooterProperty = DependencyProperty.Register(
+            nameof(ShowFooter), typeof(bool), typeof(TreeGridControl),
+            new PropertyMetadata(true, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FooterHeightProperty = DependencyProperty.Register(
+            nameof(FooterHeight), typeof(double), typeof(TreeGridControl),
+            new PropertyMetadata(26d, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FooterContentProperty = DependencyProperty.Register(
+            nameof(FooterContent), typeof(object), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FooterStatusTextProperty = DependencyProperty.Register(
+            nameof(FooterStatusText), typeof(string), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty AllowGroupingProperty = DependencyProperty.Register(
+            nameof(AllowGrouping), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(false));
+
+        public static readonly DependencyProperty ShowGroupDropAreaProperty = DependencyProperty.Register(
+            nameof(ShowGroupDropArea), typeof(bool), typeof(TreeGridControl),
+            new PropertyMetadata(false, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty GroupDropAreaHeightProperty = DependencyProperty.Register(
+            nameof(GroupDropAreaHeight), typeof(double), typeof(TreeGridControl),
+            new PropertyMetadata(38d, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty ShowGroupItemCountProperty = DependencyProperty.Register(
+            nameof(ShowGroupItemCount), typeof(bool), typeof(TreeGridControl),
+            new PropertyMetadata(true, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty AutoExpandGroupsProperty = DependencyProperty.Register(
+            nameof(AutoExpandGroups), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(true));
 
         public static readonly DependencyProperty EnableColumnVirtualizationProperty = DependencyProperty.Register(
             nameof(EnableColumnVirtualization), typeof(bool), typeof(TreeGridControl),
@@ -830,6 +885,73 @@ namespace TreeGrid.Wpf
             set => SetValue(ExpanderGlyphBrushProperty, value);
         }
 
+        /// <summary>Shows the status strip below the rows. On by default.</summary>
+        public bool ShowFooter
+        {
+            get => (bool)GetValue(ShowFooterProperty);
+            set => SetValue(ShowFooterProperty, value);
+        }
+
+        public double FooterHeight
+        {
+            get => (double)GetValue(FooterHeightProperty);
+            set => SetValue(FooterHeightProperty, value);
+        }
+
+        /// <summary>Content shown on the right of the footer, e.g. aggregates.</summary>
+        public object FooterContent
+        {
+            get => GetValue(FooterContentProperty);
+            set => SetValue(FooterContentProperty, value);
+        }
+
+        /// <summary>Overrides the generated status line when set.</summary>
+        public string FooterStatusText
+        {
+            get => (string)GetValue(FooterStatusTextProperty);
+            set => SetValue(FooterStatusTextProperty, value);
+        }
+
+        /// <summary>Enables grouping. Required before headers can be dragged to the panel.</summary>
+        public bool AllowGrouping
+        {
+            get => (bool)GetValue(AllowGroupingProperty);
+            set => SetValue(AllowGroupingProperty, value);
+        }
+
+        /// <summary>Shows the panel above the headers listing the active grouping.</summary>
+        public bool ShowGroupDropArea
+        {
+            get => (bool)GetValue(ShowGroupDropAreaProperty);
+            set => SetValue(ShowGroupDropAreaProperty, value);
+        }
+
+        public double GroupDropAreaHeight
+        {
+            get => (double)GetValue(GroupDropAreaHeightProperty);
+            set => SetValue(GroupDropAreaHeightProperty, value);
+        }
+
+        public bool ShowGroupItemCount
+        {
+            get => (bool)GetValue(ShowGroupItemCountProperty);
+            set => SetValue(ShowGroupItemCountProperty, value);
+        }
+
+        /// <summary>Expand new groups on creation. Off leaves them collapsed.</summary>
+        public bool AutoExpandGroups
+        {
+            get => (bool)GetValue(AutoExpandGroupsProperty);
+            set => SetValue(AutoExpandGroupsProperty, value);
+        }
+
+        /// <summary>The active grouping, outermost first. Mutate to group in code.</summary>
+        public GroupColumnDescriptions GroupColumnDescriptions => _groupController.Descriptions;
+
+        public bool IsGrouped => _groupController.IsGrouped;
+
+        public GroupController GroupController => _groupController;
+
         public TreeGridColumns Columns { get; }
 
         /// <summary>The flattened, currently-visible node projection.</summary>
@@ -890,12 +1012,49 @@ namespace TreeGrid.Wpf
         /// <summary>Per-cell equivalent of <see cref="QueryRowStyle"/>.</summary>
         public event EventHandler<QueryCellStyleEventArgs> QueryCellStyle;
 
+        /// <summary>Raised per group header so its caption can be customised.</summary>
+        public event EventHandler<GroupCaptionEventArgs> QueryGroupCaption
+        {
+            add => _groupController.QueryGroupCaption += value;
+            remove => _groupController.QueryGroupCaption -= value;
+        }
+
+        /// <summary>Raised before grouping changes. Cancel to refuse the change.</summary>
+        public event EventHandler<GroupingChangingEventArgs> GroupingChanging;
+
+        /// <summary>Raised after grouping has been applied and the view rebuilt.</summary>
+        public event EventHandler<GroupingChangedEventArgs> GroupingChanged;
+
+        /// <summary>Raised per pointer move while a header is dragged over the group panel.</summary>
+        public event EventHandler<GroupDragOverEventArgs> GroupDragOver;
+
+        /// <summary>Raised when a chip drag starts in the group panel. Cancel to pin it.</summary>
+        public event EventHandler<GroupChipDragEventArgs> GroupChipDragStarting;
+
         // --------------------------------------------------------------- template
 
         public override void OnApplyTemplate()
         {
             base.OnApplyTemplate();
 
+            _groupDropArea = GetTemplateChild(PartGroupDropArea) as GroupDropAreaControl;
+
+            if (_groupDropArea != null)
+            {
+                _groupDropArea.Descriptions = _groupController.Descriptions;
+                _groupDropArea.Refresh();
+
+                _groupDropArea.AddHandler(GroupDropAreaControl.GroupRemovedEvent,
+                    new RoutedEventHandler(OnGroupChipRemoved));
+                _groupDropArea.AddHandler(GroupDropAreaControl.GroupSortToggledEvent,
+                    new RoutedEventHandler(OnGroupChipSortToggled));
+                _groupDropArea.AddHandler(GroupDropAreaControl.GroupReorderedEvent,
+                    new RoutedEventHandler(OnGroupChipReordered));
+                _groupDropArea.AddHandler(GroupDropAreaControl.GroupChipDragStartedEvent,
+                    new RoutedEventHandler(OnGroupChipDragStarted));
+            }
+
+            _footer = GetTemplateChild(PartFooter) as TreeGridFooterControl;
             _headerHost = GetTemplateChild(PartHeaderHost) as Border;
             _scrollViewer = GetTemplateChild(PartScrollViewer) as ScrollViewer;
             _container = GetTemplateChild(PartVisualContainer) as VisualContainer;
@@ -966,7 +1125,7 @@ namespace TreeGrid.Wpf
             if (grid._syncingSelectedItem)
                 return;
 
-            var node = grid._dataSource.GetNode(e.NewValue);
+            var node = grid.ResolveNode(e.NewValue);
 
             if (node == null)
                 grid._selection.Clear();
@@ -1114,6 +1273,104 @@ namespace TreeGrid.Wpf
             _container?.InvalidateMeasure();
         }
 
+        /// <summary>
+        /// Maps a data item to the node currently on screen.
+        /// <para>
+        /// Grouping represents records with fresh leaf nodes, so the data source's own
+        /// map still points at the ungrouped tree. Anything that turns an item back
+        /// into a node - SelectedItem, ScrollIntoView, check state - has to go through
+        /// here or it will address invisible nodes.
+        /// </para>
+        /// </summary>
+        private TreeNode ResolveNode(object item)
+        {
+            if (item == null)
+                return null;
+
+            if (_groupedNodeMap != null && _groupedNodeMap.TryGetValue(item, out var grouped))
+                return grouped;
+
+            return _dataSource.GetNode(item);
+        }
+
+        private void RebuildGroupedNodeMap(IReadOnlyList<TreeNode> roots)
+        {
+            if (roots == null)
+            {
+                _groupedNodeMap = null;
+                return;
+            }
+
+            _groupedNodeMap = new Dictionary<object, TreeNode>();
+
+            void Visit(TreeNode node)
+            {
+                if (!node.IsGroupHeader && node.Item != null)
+                    _groupedNodeMap[node.Item] = node;
+
+                for (var i = 0; i < node.ChildNodes.Count; i++)
+                    Visit(node.ChildNodes[i]);
+            }
+
+            for (var i = 0; i < roots.Count; i++)
+                Visit(roots[i]);
+        }
+
+        /// <summary>
+        /// Recomputes the footer counts. Group headers are excluded from the record
+        /// count, so "1,204 records" means records whether or not grouping is on.
+        /// </summary>
+        public void UpdateFooter()
+        {
+            if (_footer == null || !ShowFooter)
+                return;
+
+            var view = _dataSource.View;
+            var records = 0;
+            var groups = 0;
+
+            for (var i = 0; i < view.Count; i++)
+            {
+                if (view[i].IsGroupHeader)
+                    groups++;
+                else
+                    records++;
+            }
+
+            _footer.VisibleRowCount = view.Count;
+            _footer.RecordCount = records;
+            _footer.GroupCount = groups;
+            _footer.SelectedCount = _selection.SelectedItems.Count;
+            _footer.CheckedCount = _checkState.CheckedItems.Count;
+
+            _footer.StatusText = !string.IsNullOrEmpty(FooterStatusText)
+                ? FooterStatusText
+                : ComposeFooterText(records, groups);
+        }
+
+        private string ComposeFooterText(int records, int groups)
+        {
+            var builder = new System.Text.StringBuilder();
+
+            builder.Append(records.ToString("N0")).Append(records == 1 ? " record" : " records");
+
+            if (groups > 0)
+                builder.Append("  |  ").Append(groups.ToString("N0")).Append(groups == 1 ? " group" : " groups");
+
+            var selected = _selection.SelectedItems.Count;
+            if (selected > 0)
+                builder.Append("  |  ").Append(selected.ToString("N0")).Append(" selected");
+
+            var checkedCount = _checkState.CheckedItems.Count;
+            if (checkedCount > 0)
+                builder.Append("  |  ").Append(checkedCount.ToString("N0")).Append(" checked");
+
+            if (_filterController.HasFilters)
+                builder.Append("  |  filtered");
+
+            return builder.ToString();
+        }
+
         private int ResolveCurrentColumn(TreeNode node) =>
             ReferenceEquals(node, _selection.CurrentNode) ? _selection.CurrentColumnIndex : -1;
 
@@ -1170,6 +1427,22 @@ namespace TreeGrid.Wpf
 
             if (_headerHost != null)
                 _headerHost.Height = HeaderRowHeight + StackedHeaderRows.Count * StackedHeaderRowHeight;
+
+            if (_groupDropArea != null)
+            {
+                _groupDropArea.Height = GroupDropAreaHeight;
+                _groupDropArea.Visibility = ShowGroupDropArea ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (_footer != null)
+            {
+                _footer.Height = FooterHeight;
+                _footer.Visibility = ShowFooter ? Visibility.Visible : Visibility.Collapsed;
+                _footer.CustomContent = FooterContent;
+                _footer.SeparatorBrush = GridLineBrush ?? ThemeBrush("TreeGrid.BorderBrush");
+            }
+
+            UpdateFooter();
 
             if (_headerRow != null)
             {
@@ -1231,13 +1504,18 @@ namespace TreeGrid.Wpf
                 _container?.ResetRows();
 
             _container?.InvalidateMeasure();
+            UpdateFooter();
         }
 
         private void OnSourceReset(object sender, EventArgs e)
         {
             // Nodes are new objects after a rebuild, so both controllers remap by item.
-            _selection.Restore(item => _dataSource.GetNode(item));
-            _checkState.Restore(item => _dataSource.GetNode(item));
+            // The cached ungrouped tree belongs to the previous source.
+            _ungroupedRoots = null;
+            _groupedNodeMap = null;
+
+            _selection.Restore(ResolveNode);
+            _checkState.Restore(ResolveNode);
 
             // A new node tree arrives unsorted and unfiltered; reapply both.
             if (_filterController.HasFilters)
@@ -1247,6 +1525,9 @@ namespace TreeGrid.Wpf
                 _dataSource.View.SortHierarchy(_sortController.BuildComparison());
             else if (_filterController.HasFilters)
                 _dataSource.View.Rebuild();
+
+            if (_groupController.IsGrouped)
+                ApplyGrouping();
 
             _container?.ResetRows();
             RefreshLayout();
@@ -1463,7 +1744,7 @@ namespace TreeGrid.Wpf
 
         public void ScrollIntoView(object item)
         {
-            var node = _dataSource.GetNode(item);
+            var node = ResolveNode(item);
             BringNodeIntoView(node);
         }
 
@@ -1505,7 +1786,8 @@ namespace TreeGrid.Wpf
             _selection.HandlePointerDown(rowIndex, columnIndex, Keyboard.Modifiers);
             _container.RefreshRowStates();
 
-            if (AllowRowDragDrop)
+            // Group headers cannot be dragged; their position is derived from grouping.
+            if (AllowRowDragDrop && !node.IsGroupHeader)
             {
                 _dragPending = true;
                 _dragOrigin = point;
@@ -1541,6 +1823,10 @@ namespace TreeGrid.Wpf
         {
             base.OnMouseMove(e);
 
+            // Header gestures take precedence and run even without a container hit.
+            if (UpdateHeaderGesture(e))
+                return;
+
             if (_container == null || e.LeftButton != MouseButtonState.Pressed)
                 return;
 
@@ -1571,11 +1857,25 @@ namespace TreeGrid.Wpf
 
             _dragPending = false;
 
+            if (FinishHeaderGesture())
+            {
+                e.Handled = true;
+                return;
+            }
+
             if (_dragController.IsDragging)
             {
                 CompleteRowDrag();
                 e.Handled = true;
             }
+        }
+
+        protected override void OnLostMouseCapture(MouseEventArgs e)
+        {
+            base.OnLostMouseCapture(e);
+
+            if (_headerDragColumn != null)
+                CancelHeaderGesture();
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
@@ -1783,6 +2083,7 @@ namespace TreeGrid.Wpf
             }
 
             _container?.RefreshRowStates();
+            UpdateFooter();
             SelectionChanged?.Invoke(this, e);
         }
 
@@ -1817,7 +2118,7 @@ namespace TreeGrid.Wpf
 
         public void SetNodeCheckState(object item, bool? state)
         {
-            var node = _dataSource.GetNode(item);
+            var node = ResolveNode(item);
             if (node == null)
                 return;
 
@@ -1825,8 +2126,11 @@ namespace TreeGrid.Wpf
             _container?.RefreshRowStates();
         }
 
-        private void OnNodeCheckedInternal(object sender, NodeCheckedEventArgs e) =>
+        private void OnNodeCheckedInternal(object sender, NodeCheckedEventArgs e)
+        {
+            UpdateFooter();
             NodeChecked?.Invoke(this, e);
+        }
 
         /// <summary>Toggles a bound boolean rendered by a TreeGridCheckBoxColumn.</summary>
         private void OnCellValueToggle(object sender, RoutedEventArgs e)
@@ -1951,34 +2255,92 @@ namespace TreeGrid.Wpf
 
         // ------------------------------------------------------ column reordering
 
-        private void OnColumnDrag(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Takes ownership of the header gesture. Capture is held by the grid, which is
+        /// never recycled, so a relayout mid-drag can no longer cancel it.
+        /// </summary>
+        private void OnHeaderPointerDown(object sender, RoutedEventArgs e)
         {
-            if (!(e is ColumnDragEventArgs args))
+            if (!(e is HeaderPointerEventArgs args) || args.Column == null)
                 return;
 
             e.Handled = true;
 
-            if (!AllowColumnReordering || _headerHost == null)
+            if (!AllowColumnReordering && !AllowGrouping && !AllowSorting)
                 return;
 
-            switch (args.Phase)
+            _headerDragColumn = args.Column;
+            _headerDragOrigin = args.ScreenPoint;
+            _headerDragging = false;
+
+            CaptureMouse();
+        }
+
+        /// <summary>Returns true when the move was consumed by a header gesture.</summary>
+        private bool UpdateHeaderGesture(MouseEventArgs e)
+        {
+            if (_headerDragColumn == null)
+                return false;
+
+            if (e.LeftButton != MouseButtonState.Pressed)
             {
-                case ColumnDragPhase.Started:
-                    BeginColumnDrag(args.Column);
-                    break;
-
-                case ColumnDragPhase.Moved:
-                    UpdateColumnDrag(args.ScreenPoint);
-                    break;
-
-                case ColumnDragPhase.Completed:
-                    CompleteColumnDrag();
-                    break;
-
-                case ColumnDragPhase.Cancelled:
-                    EndColumnDrag();
-                    break;
+                CancelHeaderGesture();
+                return false;
             }
+
+            var screenPoint = PointToScreen(e.GetPosition(this));
+
+            if (!_headerDragging)
+            {
+                var dx = Math.Abs(screenPoint.X - _headerDragOrigin.X);
+                var dy = Math.Abs(screenPoint.Y - _headerDragOrigin.Y);
+
+                // Both axes: the group panel sits above the header, so dropping a
+                // column there is a mostly vertical movement.
+                if (dx < SystemParameters.MinimumHorizontalDragDistance &&
+                    dy < SystemParameters.MinimumVerticalDragDistance)
+                    return true;
+
+                _headerDragging = true;
+                BeginColumnDrag(_headerDragColumn);
+            }
+
+            UpdateColumnDrag(screenPoint);
+            return true;
+        }
+
+        /// <summary>Returns true when the release was consumed by a header gesture.</summary>
+        private bool FinishHeaderGesture()
+        {
+            if (_headerDragColumn == null)
+                return false;
+
+            var column = _headerDragColumn;
+            var wasDragging = _headerDragging;
+
+            _headerDragColumn = null;
+            _headerDragging = false;
+
+            if (IsMouseCaptured)
+                ReleaseMouseCapture();
+
+            if (wasDragging)
+                CompleteColumnDrag();
+            else
+                HandleHeaderClick(column);
+
+            return true;
+        }
+
+        private void CancelHeaderGesture()
+        {
+            _headerDragColumn = null;
+            _headerDragging = false;
+
+            if (IsMouseCaptured)
+                ReleaseMouseCapture();
+
+            EndColumnDrag();
         }
 
         private void BeginColumnDrag(TreeGridColumn column)
@@ -1996,7 +2358,37 @@ namespace TreeGrid.Wpf
 
         private void UpdateColumnDrag(Point screenPoint)
         {
-            if (_reorderAdorner == null || _headerHost == null)
+            if (_headerHost == null)
+                return;
+
+            // Dropping on the group panel groups by the column instead of moving it.
+            if (IsOverGroupArea(screenPoint, out var areaPoint))
+            {
+                _groupDropIndex = _groupDropArea.GetInsertIndex(areaPoint);
+
+                var over = new GroupDragOverEventArgs(_draggedColumn, _groupDropIndex);
+                GroupDragOver?.Invoke(this, over);
+
+                var allowed = over.IsAllowed && (_draggedColumn?.AllowGrouping ?? false);
+
+                _dropIntoGroupArea = allowed;
+                _groupDropArea.IsDropTarget = allowed;
+
+                if (_reorderAdorner != null)
+                    _reorderAdorner.IndicatorX = -1;
+
+                return;
+            }
+
+            if (_dropIntoGroupArea)
+            {
+                _dropIntoGroupArea = false;
+
+                if (_groupDropArea != null)
+                    _groupDropArea.IsDropTarget = false;
+            }
+
+            if (_reorderAdorner == null)
                 return;
 
             var local = _headerHost.PointFromScreen(screenPoint);
@@ -2039,7 +2431,20 @@ namespace TreeGrid.Wpf
 
         private void CompleteColumnDrag()
         {
-            if (_draggedColumn != null && _dropIndex >= 0)
+            if (_dropIntoGroupArea && _draggedColumn != null)
+            {
+                var column = _draggedColumn;
+                var index = _groupDropIndex >= 0 ? _groupDropIndex : _groupController.Descriptions.Count;
+
+                EndColumnDrag();
+
+                if (column.AllowGrouping)
+                    GroupByColumn(column.MappingName, index);
+
+                return;
+            }
+
+            if (_draggedColumn != null && _dropIndex >= 0 && AllowColumnReordering)
             {
                 var from = Columns.IndexOf(_draggedColumn);
 
@@ -2063,6 +2468,12 @@ namespace TreeGrid.Wpf
 
         private void EndColumnDrag()
         {
+            _dropIntoGroupArea = false;
+            _groupDropIndex = -1;
+
+            if (_groupDropArea != null)
+                _groupDropArea.IsDropTarget = false;
+
             if (_reorderAdorner != null && _headerHost != null)
             {
                 var adornerLayer = AdornerLayer.GetAdornerLayer(_headerHost);
@@ -2076,18 +2487,17 @@ namespace TreeGrid.Wpf
 
         // ---------------------------------------------------------------- sorting
 
-        private void OnHeaderClick(object sender, RoutedEventArgs e)
+        /// <summary>A press with no drag sorts the column.</summary>
+        private void HandleHeaderClick(TreeGridColumn column)
         {
-            if (!(e is ColumnRoutedEventArgs args) || args.Column == null)
+            if (column == null)
                 return;
 
-            e.Handled = true;
-
-            if (!AllowSorting || !args.Column.AllowSorting || string.IsNullOrEmpty(args.Column.MappingName))
+            if (!AllowSorting || !column.AllowSorting || string.IsNullOrEmpty(column.MappingName))
                 return;
 
             var addToExisting = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
-            _sortController.ToggleColumn(args.Column.MappingName, AllowMultiSort, addToExisting);
+            _sortController.ToggleColumn(column.MappingName, AllowMultiSort, addToExisting);
 
             // The collection-changed hook runs ApplySorting; if the toggle produced no
             // structural change (single-sort replacing itself) force it here.
@@ -2442,14 +2852,16 @@ namespace TreeGrid.Wpf
 
             foreach (var item in _selection.SelectedItems)
             {
-                var node = _dataSource.GetNode(item);
+                var node = ResolveNode(item);
                 if (node != null)
                     nodes.Add(node);
             }
 
-            if (nodes.Count == 0 && _selection.CurrentNode != null)
+            if (nodes.Count == 0 && _selection.CurrentNode != null &&
+                !_selection.CurrentNode.IsGroupHeader)
                 nodes.Add(_selection.CurrentNode);
 
+            // Begin filters group headers too and refuses an empty set.
             if (!_dragController.Begin(nodes))
                 return;
 
@@ -2773,11 +3185,12 @@ namespace TreeGrid.Wpf
             {
                 var node = _dataSource.View[i];
 
-                if (node.IsSelected)
+                // A group header has no record, so copying one would emit a blank row.
+                if (node.IsSelected && !node.IsGroupHeader)
                     nodes.Add(node);
             }
 
-            if (nodes.Count == 0 && _selection.CurrentNode != null)
+            if (nodes.Count == 0 && _selection.CurrentNode != null && !_selection.CurrentNode.IsGroupHeader)
                 nodes.Add(_selection.CurrentNode);
 
             return nodes;
@@ -2817,6 +3230,289 @@ namespace TreeGrid.Wpf
         /// Applies an incremental source change. Unlike a reload this keeps node
         /// identity, so selection, check state and expansion all survive untouched.
         /// </summary>
+        // ============================================================== GROUPING
+
+        /// <summary>Adds a grouping level, or moves an existing one to <paramref name="index"/>.</summary>
+        public void GroupByColumn(string mappingName, int index = -1,
+            ListSortDirection direction = ListSortDirection.Ascending)
+        {
+            if (string.IsNullOrEmpty(mappingName))
+                return;
+
+            var existing = _groupController.Descriptions.IndexOfColumn(mappingName);
+
+            if (existing >= 0)
+            {
+                var target = index < 0 ? _groupController.Descriptions.Count - 1 : index;
+                target = Math.Min(Math.Max(0, target), _groupController.Descriptions.Count - 1);
+
+                if (target == existing)
+                    return;
+
+                if (!RequestGroupingChange(GroupingAction.Reordered, mappingName, existing, target))
+                    return;
+
+                _groupController.Descriptions.Move(existing, target);
+                return;
+            }
+
+            var column = FindColumn(mappingName);
+
+            if (column != null && !column.AllowGrouping)
+                return;
+
+            var insertAt = index < 0 || index > _groupController.Descriptions.Count
+                ? _groupController.Descriptions.Count
+                : index;
+
+            if (!RequestGroupingChange(GroupingAction.Grouped, mappingName, -1, insertAt))
+                return;
+
+            var description = new GroupColumnDescription
+            {
+                ColumnName = mappingName,
+                SortDirection = direction,
+                HeaderText = column?.ResolvedHeaderText ?? mappingName
+            };
+
+            _groupController.Descriptions.Insert(insertAt, description);
+        }
+
+        public void UngroupColumn(string mappingName)
+        {
+            var index = _groupController.Descriptions.IndexOfColumn(mappingName);
+
+            if (index < 0)
+                return;
+
+            if (!RequestGroupingChange(GroupingAction.Ungrouped, mappingName, index, -1))
+                return;
+
+            _groupController.Descriptions.RemoveAt(index);
+        }
+
+        public void ClearGrouping()
+        {
+            if (_groupController.Descriptions.Count == 0)
+                return;
+
+            if (!RequestGroupingChange(GroupingAction.Cleared, null, -1, -1))
+                return;
+
+            _groupController.Descriptions.Clear();
+        }
+
+        /// <summary>Moves a grouping level, changing precedence.</summary>
+        public void MoveGroup(int fromIndex, int toIndex)
+        {
+            var count = _groupController.Descriptions.Count;
+
+            if (fromIndex < 0 || fromIndex >= count)
+                return;
+
+            toIndex = Math.Min(Math.Max(0, toIndex), count - 1);
+
+            if (fromIndex == toIndex)
+                return;
+
+            var columnName = _groupController.Descriptions[fromIndex].ColumnName;
+
+            if (!RequestGroupingChange(GroupingAction.Reordered, columnName, fromIndex, toIndex))
+                return;
+
+            _groupController.Descriptions.Move(fromIndex, toIndex);
+        }
+
+        public void ExpandAllGroups() => _dataSource.View.ExpandAll();
+
+        public void CollapseAllGroups()
+        {
+            foreach (var root in _dataSource.View.RootNodes)
+                CollapseGroupsRecursive(root);
+
+            _dataSource.View.Rebuild();
+        }
+
+        private static void CollapseGroupsRecursive(TreeNode node)
+        {
+            if (!node.IsGroupHeader)
+                return;
+
+            node.IsExpanded = false;
+
+            for (var i = 0; i < node.ChildNodes.Count; i++)
+                CollapseGroupsRecursive(node.ChildNodes[i]);
+        }
+
+        private TreeGridColumn FindColumn(string mappingName)
+        {
+            foreach (var column in Columns)
+            {
+                if (string.Equals(column.MappingName, mappingName, StringComparison.Ordinal))
+                    return column;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Rebuilds the view for the current grouping.
+        /// <para>
+        /// The ungrouped roots are cached rather than regenerated, so clearing grouping
+        /// restores the original tree - including expansion state - instead of forcing
+        /// a reload from the source.
+        /// </para>
+        /// </summary>
+        public void ApplyGrouping()
+        {
+            if (!_templateApplied)
+                return;
+
+            _groupDropArea?.Refresh();
+
+            if (!_groupController.IsGrouped)
+            {
+                if (_ungroupedRoots != null)
+                {
+                    _dataSource.View.SetRoots(_ungroupedRoots);
+                    _ungroupedRoots = null;
+                }
+
+                _groupedNodeMap = null;
+                FinishGroupingPass();
+                return;
+            }
+
+            // Capture the real tree the first time we group so it can be handed back.
+            _ungroupedRoots ??= new List<TreeNode>(_dataSource.View.RootNodes);
+
+            var records = GroupController.CollectRecords(_ungroupedRoots);
+
+            var grouped = _groupController.Build(
+                records,
+                FindColumn,
+                _sortController.HasSort ? _sortController.BuildComparison() : null);
+
+            if (!AutoExpandGroups)
+            {
+                foreach (var root in grouped)
+                    CollapseGroupsRecursive(root);
+            }
+
+            RebuildGroupedNodeMap(grouped);
+            _dataSource.View.SetRoots(grouped);
+            FinishGroupingPass();
+        }
+
+        private void FinishGroupingPass()
+        {
+            if (_filterController.HasFilters)
+                _filterController.Apply(_dataSource.View.RootNodes);
+
+            _mergeController.Invalidate();
+            _dataSource.View.Rebuild();
+
+            _container?.ResetRows();
+            _container?.InvalidateMeasure();
+            UpdateFooter();
+
+            var change = _pendingGroupChange ?? new GroupingChangedEventArgs(
+                GroupingAction.Reordered, null, null, -1, -1, _groupController.Descriptions.Count);
+
+            _pendingGroupChange = null;
+            GroupingChanged?.Invoke(this, change);
+        }
+
+        /// <summary>Runs the cancellable pre-change event and records detail for the post-change one.</summary>
+        private bool RequestGroupingChange(GroupingAction action, string columnName, int oldIndex, int newIndex)
+        {
+            var column = columnName == null ? null : FindColumn(columnName);
+            var changing = new GroupingChangingEventArgs(action, columnName, column, oldIndex, newIndex);
+
+            GroupingChanging?.Invoke(this, changing);
+
+            if (changing.Cancel)
+                return false;
+
+            _pendingGroupChange = new GroupingChangedEventArgs(action, columnName, column,
+                oldIndex, newIndex, _groupController.Descriptions.Count);
+
+            return true;
+        }
+
+        // ------------------------------------------------------- chip gestures
+
+        private void OnGroupChipRemoved(object sender, RoutedEventArgs e)
+        {
+            if (e is GroupChipEventArgs args)
+            {
+                e.Handled = true;
+                UngroupColumn(args.ColumnName);
+            }
+        }
+
+        private void OnGroupChipSortToggled(object sender, RoutedEventArgs e)
+        {
+            if (!(e is GroupChipEventArgs args))
+                return;
+
+            e.Handled = true;
+
+            var description = _groupController.Descriptions.Find(args.ColumnName);
+
+            if (description == null)
+                return;
+
+            var index = _groupController.Descriptions.IndexOf(description);
+
+            if (!RequestGroupingChange(GroupingAction.SortDirectionChanged, args.ColumnName, index, index))
+                return;
+
+            description.SortDirection = description.SortDirection == ListSortDirection.Ascending
+                ? ListSortDirection.Descending
+                : ListSortDirection.Ascending;
+
+            ApplyGrouping();
+        }
+
+        private void OnGroupChipDragStarted(object sender, RoutedEventArgs e)
+        {
+            if (!(e is GroupChipEventArgs args))
+                return;
+
+            var index = _groupController.Descriptions.IndexOfColumn(args.ColumnName);
+            var starting = new GroupChipDragEventArgs(args.ColumnName, index);
+
+            GroupChipDragStarting?.Invoke(this, starting);
+
+            // Handled tells the panel to abandon the drag, pinning that level.
+            e.Handled = starting.Cancel;
+        }
+
+        private void OnGroupChipReordered(object sender, RoutedEventArgs e)
+        {
+            if (e is GroupReorderEventArgs args)
+            {
+                e.Handled = true;
+                MoveGroup(args.FromIndex, args.ToIndex);
+            }
+        }
+
+        /// <summary>True when a point in grid coordinates is over the group panel.</summary>
+        private bool IsOverGroupArea(Point screenPoint, out Point areaPoint)
+        {
+            areaPoint = default;
+
+            if (_groupDropArea == null || !AllowGrouping || !ShowGroupDropArea ||
+                _groupDropArea.Visibility != Visibility.Visible)
+                return false;
+
+            areaPoint = _groupDropArea.PointFromScreen(screenPoint);
+
+            return areaPoint.X >= 0 && areaPoint.X <= _groupDropArea.ActualWidth &&
+                   areaPoint.Y >= 0 && areaPoint.Y <= _groupDropArea.ActualHeight;
+        }
+
         private void OnIncrementalChange(object sender, EventArgs e)
         {
             if (_sortController.HasSort)

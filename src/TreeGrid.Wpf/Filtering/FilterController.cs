@@ -155,9 +155,11 @@ namespace TreeGrid.Wpf.Filtering
                     descendantMatched = true;
             }
 
-            var visible = selfMatch
-                          || keepAsChild
-                          || (descendantMatched && KeepsParents);
+            // A group header has no data of its own, so it can never match. It stays
+            // visible whenever anything under it does, whatever the node mode says.
+            var visible = node.IsGroupHeader
+                ? descendantMatched
+                : selfMatch || keepAsChild || (descendantMatched && KeepsParents);
 
             node.IsFilteredOut = !visible;
 
@@ -178,7 +180,7 @@ namespace TreeGrid.Wpf.Filtering
         /// <summary>Column filters combine with AND; the row predicate must also pass.</summary>
         public bool Matches(TreeNode node)
         {
-            if (node?.Item == null)
+            if (node == null || node.IsGroupHeader || node.Item == null)
                 return false;
 
             foreach (var pair in _filters)

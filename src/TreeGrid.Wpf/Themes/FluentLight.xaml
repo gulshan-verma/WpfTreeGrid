@@ -27,5 +27,9 @@
     <SolidColorBrush x:Key="TreeGrid.ErrorBrush" Color="#D1242F" />
     <SolidColorBrush x:Key="TreeGrid.EditorBackground" Color="#FFFFFF" />
     <SolidColorBrush x:Key="TreeGrid.FrozenLine" Color="#9AA4B0" />
+    <SolidColorBrush x:Key="TreeGrid.GroupRowBackground" Color="#EEF2F7" />
+    <SolidColorBrush x:Key="TreeGrid.GroupAreaBackground" Color="#F0F2F5" />
+    <SolidColorBrush x:Key="TreeGrid.GroupChipBackground" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TreeGrid.FooterBackground" Color="#F5F6F8" />
 
 </ResourceDictionary>

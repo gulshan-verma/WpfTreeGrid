@@ -26,6 +26,7 @@ decompiled, and the core library has no external dependencies at all.
 
 ## Contents
 
+- [Screenshots](#screenshots)
 - [Requirements and build](#requirements-and-build)
 - [Projects](#projects)
 - [Quick start](#quick-start)
@@ -33,7 +34,9 @@ decompiled, and the core library has no external dependencies at all.
 - [Data binding](#data-binding)
 - [Virtualization](#virtualization)
 - [Columns](#columns)
+- [Footer](#footer)
 - [Selection](#selection)
+- [Grouping](#grouping)
 - [Sorting](#sorting)
 - [Filtering](#filtering)
 - [Editing and validation](#editing-and-validation)
@@ -42,6 +45,7 @@ decompiled, and the core library has no external dependencies at all.
 - [Context menus](#context-menus)
 - [Clipboard](#clipboard)
 - [Export](#export)
+- [Appearance and conditional formatting](#appearance-and-conditional-formatting)
 - [Theming](#theming)
 - [Localization and RTL](#localization-and-rtl)
 - [Keyboard reference](#keyboard-reference)
@@ -53,6 +57,7 @@ decompiled, and the core library has no external dependencies at all.
 ---
 
 ## Screenshots
+
 <img width="1745" height="890" alt="QC1xQzeO5z" src="https://github.com/user-attachments/assets/0961874a-8312-4dba-a661-6c62bc73eeb8" />
 
 ---
@@ -249,6 +254,25 @@ Drag the header gripper to resize, the header itself to reorder;
 
 ---
 
+## Footer
+
+A status strip below the rows, on by default.
+
+```xml
+<tg:TreeGridControl ShowFooter="True" FooterHeight="26" />
+```
+
+It shows the record count and, when non-zero, the group, selected and checked
+counts, plus a filtered marker. Group headers are excluded from the record count, so
+the number means records whether or not grouping is on.
+
+| Property | Purpose |
+|---|---|
+| `ShowFooter`, `FooterHeight` | Visibility and size |
+| `FooterStatusText` | Replaces the generated line |
+| `FooterContent` | Arbitrary content on the right, e.g. aggregates |
+| `UpdateFooter()` | Recompute after changing inputs yourself |
+
 ## Selection
 
 ```xml
@@ -280,6 +304,101 @@ before its children have loaded passes its state down when they arrive.
 `ClearSelection()`.
 
 ---
+
+## Grouping
+
+Group by any number of columns, reorder the levels by dragging, and drop column
+headers onto a panel above the grid.
+
+```xml
+<tg:TreeGridControl AllowGrouping="True"
+                    ShowGroupDropArea="True"
+                    ShowGroupItemCount="True"
+                    AutoExpandGroups="True" />
+```
+
+```csharp
+grid.GroupByColumn("Title");
+grid.GroupByColumn("Available", index: 1, ListSortDirection.Descending);
+grid.MoveGroup(1, 0);          // change precedence
+grid.UngroupColumn("Available");
+grid.ClearGrouping();
+```
+
+### The group panel
+
+| Gesture | Result |
+|---|---|
+| Drag a column header onto the panel | Groups by that column, at the drop position |
+| Drag a chip left or right | Changes grouping precedence |
+| Click a chip | Flips that level's sort direction |
+| Click the chip's × | Removes that grouping level |
+| Right-click a header | Group, ungroup, move a level, expand/collapse all groups, clear grouping |
+
+The header-drag gesture is the same one used for column reordering — the grid routes
+it to the panel when the pointer is over it, so there is no separate drag mode to
+learn. `AllowGrouping="False"` on a column keeps it out of the panel.
+
+The gesture is owned by the grid, not by the header cell. Header cells are pooled and
+recycled, and recycling removes them from the visual tree, which silently drops any
+mouse capture they hold — a drag anchored on a cell died on the next relayout and the
+release fell through to the sort path. Anchoring capture on the grid, which is never
+recycled, removes that whole class of failure.
+
+Grouping is also on the header context menu (`ShowDefaultContextMenus="True"`), which
+is often quicker than dragging.
+
+### Grouping replaces the hierarchy
+
+**While grouping is active, the parent/child tree is set aside.** A row can sit under
+its parent or under a group, not both, and grouping by a column whose values differ
+across levels produces nonsense under any other rule. Records become leaves of the
+group tree; clearing grouping restores the original tree, expansion state included,
+because the ungrouped roots are cached rather than rebuilt.
+
+Group headers carry no data item, so they never match a filter — they stay visible
+whenever anything beneath them does, regardless of `FilterNodeMode`. Sorting still
+applies to records within the deepest group.
+
+```csharp
+grid.QueryGroupCaption += (s, e) =>
+{
+    if (e.Group.Column.MappingName == "Available")
+        e.Caption = (bool)e.Group.Key ? "Available now" : "Unavailable";
+};
+```
+
+| Member | Purpose |
+|---|---|
+| `GroupColumnDescriptions` | Active grouping, outermost first |
+| `IsGrouped` | Whether any grouping is applied |
+| `ExpandAllGroups()` / `CollapseAllGroups()` | Bulk expansion |
+| `GroupingChanging` | Before a change; cancel to refuse it |
+| `GroupingChanged` | After a change, with action, column and indices |
+| `GroupDragOver` | Per move while a header is over the panel; set `IsAllowed` false to refuse |
+| `GroupChipDragStarting` | Chip drag begins; cancel to pin that level |
+| `QueryGroupCaption` | Customise header text |
+| `GroupDropAreaHeight` | Panel height |
+
+### Grouping events
+
+```csharp
+grid.GroupingChanging += (s, e) =>
+{
+    if (e.Action == GroupingAction.Ungrouped && e.ColumnName == "Region")
+        e.Cancel = true;          // this level cannot be removed
+};
+
+grid.GroupingChanged += (s, e) =>
+    Log($"{e.Action}: {e.ColumnName} {e.OldIndex} -> {e.NewIndex}, {e.GroupLevelCount} levels");
+
+grid.GroupDragOver += (s, e) =>
+    e.IsAllowed = e.Column.MappingName != "Id";
+```
+
+`GroupingAction` is `Grouped`, `Ungrouped`, `Reordered`, `SortDirectionChanged` or
+`Cleared`. Every route into grouping raises these — the panel, the drag, and the
+programmatic API alike.
 
 ## Sorting
 
@@ -492,6 +611,63 @@ Implement `IGridExporter` for your own formats.
 
 ---
 
+## Appearance and conditional formatting
+
+Themes are application-wide. These properties style **one grid**, and each falls back
+to the current theme resource when left unset — so you override only what you care
+about and the rest still follows a theme swap.
+
+```xml
+<tg:TreeGridControl HeaderBackground="#1F2328"
+                    HeaderForeground="White"
+                    HeaderFontWeight="Bold"
+                    HoverRowBackground="#F0F6FF"
+                    SelectedRowForeground="#0B2E5C"
+                    GridLinesVisibility="Horizontal"
+                    CellFontFamily="Consolas"
+                    CellFontSize="13"
+                    RowHeight="30"
+                    IndentPerLevel="24" />
+```
+
+| Group | Properties |
+|---|---|
+| Header | `HeaderBackground`, `HeaderForeground`, `HeaderBorderBrush`, `HeaderFontFamily`, `HeaderFontSize`, `HeaderFontWeight`, `HeaderRowHeight` |
+| Rows | `RowBackground`, `AlternatingRowBackground`, `ShowAlternatingRows`, `SelectedRowBackground`, `SelectedRowForeground`, `HoverRowBackground`, `RowHeight` |
+| Cells | `CellForeground`, `CellFontFamily`, `CellFontSize`, `CellFontWeight`, `CellPadding` |
+| Chrome | `GridLineBrush`, `GridLinesVisibility`, `CurrentCellBorderBrush`, `ErrorBrush`, `EditorBackground`, `ExpanderGlyphBrush`, `FrozenLineBrush`, `DropIndicatorBrush`, `IndentPerLevel` |
+
+`HoverRowBackground` is null by default; setting it is what enables hover
+highlighting. Use `ClearValue(...)` rather than assigning a theme colour to reset a
+property — cleared properties resume following theme changes.
+
+### Conditional formatting
+
+```csharp
+grid.QueryCellStyle += (s, e) =>
+{
+    if (e.Column.MappingName == "Salary" && ((Employee)e.Record).Salary > 150000)
+    {
+        e.Background = Brushes.Honeydew;
+        e.Foreground = Brushes.DarkGreen;
+    }
+};
+
+grid.QueryRowStyle += (s, e) =>
+{
+    if (((Employee)e.Record).Title == "Director")
+        e.FontWeight = FontWeights.Bold;
+};
+```
+
+Both fire only for **realised** rows, so cost tracks viewport size rather than record
+count. Leave a property null to keep the grid's value — a handler sets only what it
+overrides. Precedence, narrowest first: cell override → row override → selection →
+hover → alternating stripe → row background.
+
+Call `RefreshAppearance()` after changing styling in code or after the inputs to your
+formatting rules change.
+
 ## Theming
 
 Templates resolve every brush with `DynamicResource`, so a theme is a brush-only
@@ -593,6 +769,10 @@ the row control, and quadratic range selection on shift-click.
 Stated plainly, because several are structural rather than unfinished.
 
 - **Row height is uniform.** Variable-height rows are not supported.
+- **Grouping replaces the tree hierarchy** rather than nesting inside it. Grouping
+  root nodes while preserving their subtrees is not implemented.
+- **Grouping rebuilds the view on each change.** Records become new leaf nodes, so a
+  regroup is O(records) rather than incremental. Fine into the tens of thousands.
 - **Cell merging is parked.** `AllowMergeCells` defaults to false and is fully
   disconnected when off, costing nothing per cell. The implementation is complete and
   its rendering faults are fixed, but it has had no real use. Set
@@ -621,7 +801,7 @@ A phase-by-phase build history is in
 
 ## Licence
 
-This project is licensed under the MIT License. See the [`LICENSE`](./LICENSE) file in the root of the repository for details.
+No licence file is included — add one before publishing.
 
 `TreeGrid.Wpf.Export` depends on ClosedXML (MIT) and QuestPDF, whose Community
 licence carries revenue-based eligibility terms. Check that QuestPDF's terms fit your

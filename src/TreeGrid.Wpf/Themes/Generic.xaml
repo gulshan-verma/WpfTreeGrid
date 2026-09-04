@@ -2,7 +2,8 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:tg="clr-namespace:TreeGrid.Wpf"
                     xmlns:view="clr-namespace:TreeGrid.Wpf.View"
-                    xmlns:filter="clr-namespace:TreeGrid.Wpf.Filtering">
+                    xmlns:filter="clr-namespace:TreeGrid.Wpf.Filtering"
+                    xmlns:grouping="clr-namespace:TreeGrid.Wpf.Grouping">
 
     <!-- Theme brushes. Swap this dictionary to reskin the control. -->
     <SolidColorBrush x:Key="TreeGrid.Background" Color="#FFFFFF" />
@@ -24,6 +25,10 @@
     <SolidColorBrush x:Key="TreeGrid.ErrorBrush" Color="#D1242F" />
     <SolidColorBrush x:Key="TreeGrid.EditorBackground" Color="#FFFFFF" />
     <SolidColorBrush x:Key="TreeGrid.FrozenLine" Color="#9AA4B0" />
+    <SolidColorBrush x:Key="TreeGrid.GroupRowBackground" Color="#EEF2F7" />
+    <SolidColorBrush x:Key="TreeGrid.GroupAreaBackground" Color="#F0F2F5" />
+    <SolidColorBrush x:Key="TreeGrid.GroupChipBackground" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TreeGrid.FooterBackground" Color="#F5F6F8" />
 
     <!-- =============================================================== Cell -->
     <Style TargetType="{x:Type view:TreeGridCell}">
@@ -453,6 +458,187 @@
         </Setter>
     </Style>
 
+    <!-- ==================================================== Group header row -->
+    <Style TargetType="{x:Type view:TreeGridGroupCell}">
+        <Setter Property="Background" Value="{DynamicResource TreeGrid.GroupRowBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource TreeGrid.CellForeground}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type view:TreeGridGroupCell}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource TreeGrid.GridLineBrush}"
+                            BorderThickness="0,0,0,1">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="{TemplateBinding Indent}" />
+
+                            <Button x:Name="PART_Expander"
+                                    Width="16" Height="16" Margin="0,0,4,0" Padding="0"
+                                    Background="Transparent" BorderThickness="0" Focusable="False">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Path x:Name="Glyph"
+                                      Data="M 0 0 L 4 4 L 0 8 Z"
+                                      Fill="{Binding ExpanderGlyphBrush, RelativeSource={RelativeSource AncestorType={x:Type view:TreeGridGroupCell}}}" />
+                            </Button>
+
+                            <TextBlock Text="{TemplateBinding Caption}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       FontWeight="{TemplateBinding FontWeight}" />
+
+                            <TextBlock x:Name="CountText"
+                                       Margin="8,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontWeight="Normal"
+                                       Opacity="0.7"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       Text="{Binding ItemCount, RelativeSource={RelativeSource TemplatedParent}, StringFormat='({0})'}" />
+                        </StackPanel>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="PART_Expander" Property="RenderTransform">
+                                <Setter.Value>
+                                    <RotateTransform Angle="90" CenterX="8" CenterY="8" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="ShowItemCount" Value="False">
+                            <Setter TargetName="CountText" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ====================================================== Group drop area -->
+    <Style TargetType="{x:Type view:GroupDropAreaControl}">
+        <Setter Property="Background" Value="{DynamicResource TreeGrid.GroupAreaBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource TreeGrid.ExpanderGlyph}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type view:GroupDropAreaControl}">
+                    <Border x:Name="AreaRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource TreeGrid.BorderBrush}"
+                            BorderThickness="0,0,0,1"
+                            Padding="8,0">
+                        <Grid>
+                            <TextBlock x:Name="Prompt"
+                                       Text="{TemplateBinding PromptText}"
+                                       VerticalAlignment="Center"
+                                       FontStyle="Italic"
+                                       Foreground="{TemplateBinding Foreground}" />
+
+                            <ItemsControl x:Name="PART_Chips"
+                                          VerticalAlignment="Center"
+                                          Visibility="Collapsed">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource TreeGrid.GroupChipBackground}"
+                                                BorderBrush="{DynamicResource TreeGrid.BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="3"
+                                                Padding="8,3"
+                                                Margin="0,0,6,0"
+                                                Cursor="SizeAll">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding HeaderText}"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TreeGrid.CellForeground}" />
+                                                <Path Margin="6,0,0,0"
+                                                      VerticalAlignment="Center"
+                                                      Fill="{DynamicResource TreeGrid.ExpanderGlyph}"
+                                                      Data="M 0 4 L 4 0 L 8 4 Z">
+                                                    <Path.Style>
+                                                        <Style TargetType="Path">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SortDirection}" Value="Descending">
+                                                                    <Setter Property="Data" Value="M 0 0 L 8 0 L 4 4 Z" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Path.Style>
+                                                </Path>
+                                                <TextBlock Text="&#215;"
+                                                           Margin="8,0,0,0"
+                                                           FontSize="14"
+                                                           VerticalAlignment="Center"
+                                                           Cursor="Hand"
+                                                           Foreground="{DynamicResource TreeGrid.ExpanderGlyph}"
+                                                           Tag="Close" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="HasGroups" Value="True">
+                            <Setter TargetName="Prompt" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="PART_Chips" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsDropTarget" Value="True">
+                            <Setter TargetName="AreaRoot" Property="BorderBrush"
+                                    Value="{DynamicResource TreeGrid.DropIndicator}" />
+                            <Setter TargetName="AreaRoot" Property="BorderThickness" Value="1" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================================================= Footer -->
+    <Style TargetType="{x:Type view:TreeGridFooterControl}">
+        <Setter Property="Background" Value="{DynamicResource TreeGrid.FooterBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource TreeGrid.CellForeground}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type view:TreeGridFooterControl}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding SeparatorBrush}"
+                            BorderThickness="0,1,0,0"
+                            Padding="8,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       Text="{TemplateBinding StatusText}"
+                                       TextTrimming="CharacterEllipsis" />
+
+                            <ContentPresenter Grid.Column="1"
+                                              VerticalAlignment="Center"
+                                              Content="{TemplateBinding CustomContent}" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ============================================================ Control -->
     <Style TargetType="{x:Type tg:TreeGridControl}">
         <Setter Property="Background" Value="{DynamicResource TreeGrid.Background}" />
@@ -474,17 +660,23 @@
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
+                            <view:GroupDropAreaControl x:Name="PART_GroupDropArea"
+                                                       Grid.Row="0"
+                                                       Visibility="Collapsed" />
+
                             <Border x:Name="PART_HeaderHost"
-                                    Grid.Row="0"
+                                    Grid.Row="1"
                                     Height="{TemplateBinding HeaderRowHeight}"
                                     Background="{DynamicResource TreeGrid.HeaderBackground}"
                                     ClipToBounds="True" />
 
                             <ScrollViewer x:Name="PART_ScrollViewer"
-                                          Grid.Row="1"
+                                          Grid.Row="2"
                                           CanContentScroll="True"
                                           HorizontalScrollBarVisibility="Auto"
                                           VerticalScrollBarVisibility="Auto"
@@ -492,6 +684,9 @@
                                 <view:VisualContainer x:Name="PART_VisualContainer"
                                                       ClipToBounds="True" />
                             </ScrollViewer>
+
+                            <view:TreeGridFooterControl x:Name="PART_Footer"
+                                                        Grid.Row="3" />
                         </Grid>
                     </Border>
                 </ControlTemplate>

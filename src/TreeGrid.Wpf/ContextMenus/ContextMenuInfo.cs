@@ -120,6 +120,50 @@ namespace TreeGrid.Wpf.ContextMenus
                 menu.Items.Add(new Separator());
             }
 
+            if (grid.AllowGrouping && !string.IsNullOrEmpty(column.MappingName))
+            {
+                var groupIndex = grid.GroupColumnDescriptions.IndexOfColumn(column.MappingName);
+
+                if (groupIndex < 0)
+                {
+                    if (column.AllowGrouping)
+                    {
+                        menu.Items.Add(CreateItem(TreeGridLocalization.GetString("GroupByColumn"),
+                            () => grid.GroupByColumn(column.MappingName)));
+                    }
+                }
+                else
+                {
+                    menu.Items.Add(CreateItem(TreeGridLocalization.GetString("UngroupColumn"),
+                        () => grid.UngroupColumn(column.MappingName)));
+
+                    // Only worth offering when there is another level to move past.
+                    if (groupIndex > 0)
+                    {
+                        menu.Items.Add(CreateItem(TreeGridLocalization.GetString("MoveGroupUp"),
+                            () => grid.MoveGroup(groupIndex, groupIndex - 1)));
+                    }
+
+                    if (groupIndex < grid.GroupColumnDescriptions.Count - 1)
+                    {
+                        menu.Items.Add(CreateItem(TreeGridLocalization.GetString("MoveGroupDown"),
+                            () => grid.MoveGroup(groupIndex, groupIndex + 1)));
+                    }
+                }
+
+                if (grid.IsGrouped)
+                {
+                    menu.Items.Add(CreateItem(TreeGridLocalization.GetString("ExpandAllGroups"),
+                        grid.ExpandAllGroups));
+                    menu.Items.Add(CreateItem(TreeGridLocalization.GetString("CollapseAllGroups"),
+                        grid.CollapseAllGroups));
+                    menu.Items.Add(CreateItem(TreeGridLocalization.GetString("ClearGrouping"),
+                        grid.ClearGrouping));
+                }
+
+                menu.Items.Add(new Separator());
+            }
+
             menu.Items.Add(CreateItem(TreeGridLocalization.GetString("AutoFit"),
                 () => grid.AutoFitColumn(column)));
 

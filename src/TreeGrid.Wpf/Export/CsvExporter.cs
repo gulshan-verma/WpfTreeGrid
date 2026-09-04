@@ -160,6 +160,10 @@ namespace TreeGrid.Wpf.Export
         private static void AppendRow(TreeNode node, IReadOnlyList<TreeGridColumn> columns,
             GridExportOptions options, List<ExportRow> rows)
         {
+            // Group headers hold no record; exporting one produces an empty row.
+            if (node.IsGroupHeader)
+                return;
+
             if (options.RowFilter != null && !options.RowFilter(node.Item))
                 return;
 

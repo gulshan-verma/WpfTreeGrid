@@ -61,6 +61,9 @@ namespace TreeGrid.Wpf.Columns
         public static readonly DependencyProperty AllowResizingProperty = DependencyProperty.Register(
             nameof(AllowResizing), typeof(bool), typeof(TreeGridColumn), new PropertyMetadata(true));
 
+        public static readonly DependencyProperty AllowGroupingProperty = DependencyProperty.Register(
+            nameof(AllowGrouping), typeof(bool), typeof(TreeGridColumn), new PropertyMetadata(true));
+
         public static readonly DependencyProperty TextAlignmentProperty = DependencyProperty.Register(
             nameof(TextAlignment), typeof(TextAlignment), typeof(TreeGridColumn),
             new PropertyMetadata(TextAlignment.Left));
@@ -137,6 +140,13 @@ namespace TreeGrid.Wpf.Columns
         {
             get => (bool)GetValue(AllowResizingProperty);
             set => SetValue(AllowResizingProperty, value);
+        }
+
+        /// <summary>Set false to stop this column being dropped on the group panel.</summary>
+        public bool AllowGrouping
+        {
+            get => (bool)GetValue(AllowGroupingProperty);
+            set => SetValue(AllowGroupingProperty, value);
         }
 
         public TextAlignment TextAlignment

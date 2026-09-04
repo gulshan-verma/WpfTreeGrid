@@ -123,8 +123,12 @@ namespace TreeGrid.Demo
         public override string ToString() => $"{FirstName} {LastName}";
     }
 
-    /// <summary>Flat rows linked by Id / ParentId, for the self-relational demo.</summary>
-    public class Task
+    /// <summary>
+    /// Flat rows linked by Id / ParentId, for the self-relational demo.
+    /// Deliberately not called "Task": that would collide with
+    /// System.Threading.Tasks.Task in any file that also does async work.
+    /// </summary>
+    public class ProjectTask
     {
         public int Id { get; set; }
         public int? ParentId { get; set; }
@@ -181,7 +185,7 @@ namespace TreeGrid.Demo
                 FirstName = FirstNames[random.Next(FirstNames.Length)],
                 LastName = LastNames[random.Next(LastNames.Length)],
                 Title = Titles[Math.Min(level, Titles.Length - 1)],
-                Salary = Math.Round((double)200000 - level * 30000 + random.Next(-15000, 15000), 0),
+                Salary = Math.Round((double)(200000 - level * 30000 + random.Next(-15000, 15000)), 0),
                 Available = random.Next(0, 2) == 1,
                 Completion = random.Next(0, 101),
                 ProfileUrl = "https://example.com/staff"
@@ -196,10 +200,10 @@ namespace TreeGrid.Demo
             return employee;
         }
 
-        public static ObservableCollection<Task> CreateSelfRelational(int count = 5000)
+        public static ObservableCollection<ProjectTask> CreateSelfRelational(int count = 5000)
         {
             var random = new Random(7);
-            var list = new ObservableCollection<Task>();
+            var list = new ObservableCollection<ProjectTask>();
             var idsByLevel = new List<List<int>> { new List<int>() };
 
             for (var id = 1; id <= count; id++)
@@ -224,7 +228,7 @@ namespace TreeGrid.Demo
                     level = 0;
                 }
 
-                list.Add(new Task
+                list.Add(new ProjectTask
                 {
                     Id = id,
                     ParentId = parentId,

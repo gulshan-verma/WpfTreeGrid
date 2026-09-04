@@ -112,6 +112,7 @@ namespace TreeGrid.Wpf.View
         /// </summary>
         public bool IsRightToLeft { get; set; }
 
+        private TreeGridGroupCell _groupCell;
         private readonly Dictionary<int, int> _mergeSpans = new Dictionary<int, int>();
         private readonly HashSet<int> _coveredColumns = new HashSet<int>();
 
@@ -127,6 +128,16 @@ namespace TreeGrid.Wpf.View
         {
             if (Layout == null)
                 return;
+
+            // A group header belongs to no column, so it replaces the whole row rather
+            // than being laid out per column.
+            if (RowType == TreeGridRowType.Record && Node != null && Node.IsGroupHeader)
+            {
+                RealizeGroupRow();
+                return;
+            }
+
+            ReleaseGroupRow();
 
             _scratchIndices.Clear();
             _scratchSet.Clear();
@@ -236,6 +247,40 @@ namespace TreeGrid.Wpf.View
             // this the old line stayed painted down the full height of the grid.
             InvalidateVisual();
         }
+
+        private void RealizeGroupRow()
+        {
+            foreach (var kvp in _realized)
+                Recycle(kvp.Value);
+
+            _realized.Clear();
+            _mergeSpans.Clear();
+            _coveredColumns.Clear();
+
+            if (_groupCell == null)
+            {
+                _groupCell = new TreeGridGroupCell();
+                Children.Add(_groupCell);
+            }
+
+            _groupCell.ExpanderGlyphBrush = VisualStyle?.ExpanderGlyphBrush;
+            _groupCell.Bind(Node, IndentPerLevel, IndentBase);
+
+            Panel.SetZIndex(this, 0);
+            InvalidateMeasure();
+            InvalidateVisual();
+        }
+
+        private void ReleaseGroupRow()
+        {
+            if (_groupCell == null)
+                return;
+
+            Children.Remove(_groupCell);
+            _groupCell = null;
+        }
+
+        public bool IsGroupRow => _groupCell != null;
 
         private void AddScratch(int index)
         {
@@ -390,6 +435,13 @@ namespace TreeGrid.Wpf.View
 
             var height = double.IsInfinity(availableSize.Height) ? 24 : availableSize.Height;
 
+            if (_groupCell != null)
+            {
+                var groupWidth = ViewportWidth > 0 ? ViewportWidth : Layout.TotalWidth;
+                _groupCell.Measure(new Size(groupWidth, height));
+                return new Size(groupWidth, height);
+            }
+
             foreach (var kvp in _realized)
             {
                 var column = Layout.ColumnAt(kvp.Key);
@@ -423,6 +475,12 @@ namespace TreeGrid.Wpf.View
         {
             if (Layout == null)
                 return finalSize;
+
+            if (_groupCell != null)
+            {
+                _groupCell.Arrange(new Rect(0, 0, finalSize.Width, finalSize.Height));
+                return finalSize;
+            }
 
             var visibleCount = Layout.VisibleColumns.Count;
             var footerStart = visibleCount - Layout.FooterColumnCount;
