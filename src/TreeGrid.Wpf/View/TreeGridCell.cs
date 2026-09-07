@@ -526,6 +526,12 @@ namespace TreeGrid.Wpf.View
         public static readonly DependencyProperty CanResizeProperty = DependencyProperty.Register(
             nameof(CanResize), typeof(bool), typeof(TreeGridHeaderCell), new PropertyMetadata(true));
 
+        public static readonly DependencyProperty HeaderTemplateProperty = DependencyProperty.Register(
+            nameof(HeaderTemplate), typeof(DataTemplate), typeof(TreeGridHeaderCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty HasHeaderTemplateProperty = DependencyProperty.Register(
+            nameof(HasHeaderTemplate), typeof(bool), typeof(TreeGridHeaderCell), new PropertyMetadata(false));
+
         public static readonly DependencyProperty SortNumberProperty = DependencyProperty.Register(
             nameof(SortNumber), typeof(int), typeof(TreeGridHeaderCell), new PropertyMetadata(0));
 
@@ -566,6 +572,19 @@ namespace TreeGrid.Wpf.View
         {
             get => (bool)GetValue(CanResizeProperty);
             set => SetValue(CanResizeProperty, value);
+        }
+
+        /// <summary>Custom header content. DataContext is the column.</summary>
+        public DataTemplate HeaderTemplate
+        {
+            get => (DataTemplate)GetValue(HeaderTemplateProperty);
+            set => SetValue(HeaderTemplateProperty, value);
+        }
+
+        public bool HasHeaderTemplate
+        {
+            get => (bool)GetValue(HasHeaderTemplateProperty);
+            set => SetValue(HasHeaderTemplateProperty, value);
         }
 
         /// <summary>Position of this column in a multi-column sort, 1-based. Zero when unsorted.</summary>
@@ -636,6 +655,11 @@ namespace TreeGrid.Wpf.View
             HeaderText = column.ResolvedHeaderText;
             CellTextAlignment = column.TextAlignment;
             CanResize = column.AllowResizing;
+            HeaderTemplate = column.HeaderTemplate;
+            HasHeaderTemplate = column.HeaderTemplate != null;
+
+            // Screen readers get the header text even when a template replaces it.
+            System.Windows.Automation.AutomationProperties.SetName(this, HeaderText ?? string.Empty);
         }
 
         /// <summary>Applies sort and filter indicators without re-reading the column.</summary>

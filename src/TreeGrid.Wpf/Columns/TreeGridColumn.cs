@@ -68,6 +68,13 @@ namespace TreeGrid.Wpf.Columns
             nameof(TextAlignment), typeof(TextAlignment), typeof(TreeGridColumn),
             new PropertyMetadata(TextAlignment.Left));
 
+        public static readonly DependencyProperty SortMemberPathProperty = DependencyProperty.Register(
+            nameof(SortMemberPath), typeof(string), typeof(TreeGridColumn), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty HeaderTemplateProperty = DependencyProperty.Register(
+            nameof(HeaderTemplate), typeof(DataTemplate), typeof(TreeGridColumn),
+            new PropertyMetadata(null, OnLayoutPropertyChanged));
+
         public static readonly DependencyProperty DisplayFormatProperty = DependencyProperty.Register(
             nameof(DisplayFormat), typeof(string), typeof(TreeGridColumn), new PropertyMetadata(null));
 
@@ -155,6 +162,27 @@ namespace TreeGrid.Wpf.Columns
             set => SetValue(TextAlignmentProperty, value);
         }
 
+        /// <summary>
+        /// Property used when sorting this column, when it should differ from what is
+        /// displayed. Falls back to <see cref="MappingName"/>.
+        /// <para>
+        /// Useful when the displayed value does not sort sensibly - a formatted status
+        /// string, or a name column that should order by a sort key.
+        /// </para>
+        /// </summary>
+        public string SortMemberPath
+        {
+            get => (string)GetValue(SortMemberPathProperty);
+            set => SetValue(SortMemberPathProperty, value);
+        }
+
+        /// <summary>Custom header content. The template's DataContext is the column.</summary>
+        public DataTemplate HeaderTemplate
+        {
+            get => (DataTemplate)GetValue(HeaderTemplateProperty);
+            set => SetValue(HeaderTemplateProperty, value);
+        }
+
         public string DisplayFormat
         {
             get => (string)GetValue(DisplayFormatProperty);
@@ -201,6 +229,10 @@ namespace TreeGrid.Wpf.Columns
         /// <summary>Header text falls back to the mapping name, as most grids do.</summary>
         public string ResolvedHeaderText => string.IsNullOrEmpty(HeaderText) ? MappingName : HeaderText;
 
+        /// <summary>The property sorting actually reads.</summary>
+        public string ResolvedSortMemberPath =>
+            string.IsNullOrEmpty(SortMemberPath) ? MappingName : SortMemberPath;
+
         // ------------------------------------------------------- editor support
 
         /// <summary>
@@ -239,6 +271,14 @@ namespace TreeGrid.Wpf.Columns
             box.Text = value?.ToString() ?? string.Empty;
             box.SelectAll();
         }
+
+        /// <summary>
+        /// Overload that also receives the record. Template columns edit through their
+        /// own bindings and need the data item, not just the cell value; the two-argument
+        /// form remains for column types that only care about the value.
+        /// </summary>
+        public virtual void PrepareEditElement(FrameworkElement element, object value, object dataItem) =>
+            PrepareEditElement(element, value);
 
         public virtual object GetEditValue(FrameworkElement element) =>
             element is TextBox box ? box.Text : null;

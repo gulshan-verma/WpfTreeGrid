@@ -104,7 +104,7 @@ namespace TreeGrid.Wpf
             _dataSource.SourceReset += OnSourceReset;
 
             SortComparers = new SortComparers();
-            _sortController = new SortController(SortComparers);
+            _sortController = new SortController(SortComparers) { ColumnResolver = FindColumn };
             _sortController.SortDescriptions.CollectionChanged += (s2, e2) => ApplySorting();
             _filterController.FilterChanged += OnFilterControllerChanged;
 
@@ -2729,6 +2729,14 @@ namespace TreeGrid.Wpf
         public bool BeginEdit(TreeNode node, TreeGridColumn column)
         {
             if (!AllowEditing || node == null || column == null || !column.AllowEditing)
+                return false;
+
+            // Group headers hold no record, and display-only columns have nothing to
+            // commit, so neither should ever open an editor.
+            if (node.IsGroupHeader || !column.SupportsValueCommit && !(column is TreeGridTemplateColumn))
+                return false;
+
+            if (column is TreeGridTemplateColumn template && !template.HasEditTemplate)
                 return false;
 
             var element = _editController.BeginEdit(node, column);

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using TreeGrid.Wpf.Columns;
 using TreeGrid.Wpf.Data;
 
 namespace TreeGrid.Wpf.Sorting
@@ -25,6 +26,18 @@ namespace TreeGrid.Wpf.Sorting
 
         public SortColumnDescriptions SortDescriptions { get; } = new SortColumnDescriptions();
 
+        /// <summary>
+        /// Resolves a column by mapping name so the sort can honour SortMemberPath.
+        /// Set by the grid; without it the mapping name is used directly.
+        /// </summary>
+        public Func<string, TreeGridColumn> ColumnResolver { get; set; }
+
+        private string ResolvePath(string columnName)
+        {
+            var column = ColumnResolver?.Invoke(columnName);
+            return column?.ResolvedSortMemberPath ?? columnName;
+        }
+
         public bool HasSort => SortDescriptions.Count > 0;
 
         /// <summary>Builds the comparison used for every sibling group, or null when unsorted.</summary>
@@ -39,9 +52,15 @@ namespace TreeGrid.Wpf.Sorting
 
             var descriptions = new List<SortColumnDescription>(SortDescriptions);
             var comparers = new List<IComparer<object>>(descriptions.Count);
+            var paths = new List<string>(descriptions.Count);
 
             foreach (var description in descriptions)
+            {
                 comparers.Add(_customComparers?.Find(description.ColumnName));
+
+                // Resolved once per sort, not once per comparison.
+                paths.Add(ResolvePath(description.ColumnName));
+            }
 
             return (a, b) =>
             {
@@ -49,8 +68,8 @@ namespace TreeGrid.Wpf.Sorting
                 {
                     var description = descriptions[i];
 
-                    var left = PropertyAccessor.GetValue(a.Item, description.ColumnName);
-                    var right = PropertyAccessor.GetValue(b.Item, description.ColumnName);
+                    var left = PropertyAccessor.GetValue(a.Item, paths[i]);
+                    var right = PropertyAccessor.GetValue(b.Item, paths[i]);
 
                     var result = comparers[i] != null
                         ? comparers[i].Compare(left, right)

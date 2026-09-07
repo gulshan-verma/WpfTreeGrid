@@ -237,13 +237,23 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0"
+                            <TextBlock x:Name="HeaderTextBlock"
+                                       Grid.Column="0"
                                        Margin="6,0,4,0"
                                        VerticalAlignment="Center"
                                        Foreground="{TemplateBinding Foreground}"
                                        Text="{TemplateBinding HeaderText}"
                                        TextAlignment="{TemplateBinding CellTextAlignment}"
-                                       TextTrimming="CharacterEllipsis" />
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{TemplateBinding HeaderText}" />
+
+                            <ContentPresenter x:Name="HeaderTemplateHost"
+                                              Grid.Column="0"
+                                              Margin="6,0,4,0"
+                                              VerticalAlignment="Center"
+                                              Content="{Binding Column, RelativeSource={RelativeSource TemplatedParent}}"
+                                              ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                              Visibility="Collapsed" />
 
                             <Path x:Name="SortGlyph"
                                   Grid.Column="1"
@@ -327,6 +337,10 @@
                         </Trigger>
                         <Trigger Property="CanResize" Value="False">
                             <Setter TargetName="PART_ResizeGripper" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="HasHeaderTemplate" Value="True">
+                            <Setter TargetName="HeaderTextBlock" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="HeaderTemplateHost" Property="Visibility" Value="Visible" />
                         </Trigger>
                         <Trigger Property="ShowSortNumber" Value="True">
                             <Setter TargetName="SortBadge" Property="Visibility" Value="Visible" />

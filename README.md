@@ -58,7 +58,16 @@ decompiled, and the core library has no external dependencies at all.
 
 ## Screenshots
 
-<img width="1745" height="890" alt="QC1xQzeO5z" src="https://github.com/user-attachments/assets/0961874a-8312-4dba-a661-6c62bc73eeb8" />
+> **Not captured yet.** Run the demo
+> (`dotnet run --project samples/TreeGrid.Demo`), save the shots below into
+> `docs/screenshots/`, and they will render here.
+> [`docs/screenshots/README.md`](docs/screenshots/README.md) has the checklist.
+
+| | |
+|---|---|
+| ![Feature explorer](docs/screenshots/feature-explorer.png)<br>**Feature explorer** — the demo and its live feature sidebar | ![Filtering](docs/screenshots/filtering.png)<br>**Excel-style filter** — value checklist plus condition filters |
+| ![Editing](docs/screenshots/editing.png)<br>**Editing and validation** — typed editors, error adorners | ![Frozen and stacked](docs/screenshots/frozen-stacked.png)<br>**Frozen panes and stacked headers** |
+| ![Drag and drop](docs/screenshots/drag-drop.png)<br>**Row drag and drop** — indented drop indicator | ![Dark theme](docs/screenshots/dark-theme.png)<br>**Dark theme** — brush-only dictionary swap |
 
 ---
 
@@ -225,7 +234,8 @@ Row height is uniform; variable heights are not supported.
 | `TreeGridDateTimeColumn` | DatePicker |
 | `TreeGridComboBoxColumn` | ComboBox, with `SelectedValuePath` support |
 | `TreeGridCheckBoxColumn` | In-place checkbox |
-| `TreeGridTemplateColumn` | Your `CellTemplate` / `EditTemplate` |
+| `TreeGridTemplateColumn` | Your `CellTemplate` / `EditTemplate`, or template selectors |
+| `TreeGridBooleanIconColumn` | Read-only; icon instead of a checkbox |
 | `TreeGridProgressBarColumn` | Display only |
 | `TreeGridHyperlinkColumn` | Display only |
 
@@ -237,6 +247,80 @@ Shared properties: `MappingName`, `HeaderText`, `Width`, `MinimumWidth`,
 > **Columns are plain `DependencyObject`s with no place in the visual or logical
 > tree.** Bindings using `RelativeSource` or `ElementName` will not resolve against
 > them. Set a combo column's `ItemsSource` from code-behind or a `StaticResource`.
+
+### Template columns
+
+Arbitrary cell content, in the spirit of `DataGridTemplateColumn`. The template's
+DataContext is the **data item**, so bindings read exactly as they would in a DataGrid.
+
+```xml
+<cols:TreeGridTemplateColumn HeaderText="Band" MappingName="Salary" SortMemberPath="Salary">
+    <cols:TreeGridTemplateColumn.CellTemplate>
+        <DataTemplate>
+            <Border CornerRadius="9" Padding="7,1"
+                    Background="{Binding Salary, Converter={StaticResource BandBrushConverter}}">
+                <TextBlock Text="{Binding Salary, Converter={StaticResource BandTextConverter}}" />
+            </Border>
+        </DataTemplate>
+    </cols:TreeGridTemplateColumn.CellTemplate>
+    <cols:TreeGridTemplateColumn.EditTemplate>
+        <DataTemplate>
+            <Slider Value="{Binding Salary, Mode=TwoWay}" Minimum="0" Maximum="250000" />
+        </DataTemplate>
+    </cols:TreeGridTemplateColumn.EditTemplate>
+</cols:TreeGridTemplateColumn>
+```
+
+`CellTemplateSelector` and `EditTemplateSelector` pick a template per row. A template
+column commits through its own bindings, so the grid writes nothing back on commit,
+and it only enters edit mode when an edit template or selector is present.
+
+### Read-only boolean icons
+
+```xml
+<cols:TreeGridBooleanIconColumn MappingName="Available"
+                                TrueText="Available" FalseText="Unavailable" />
+```
+
+A green tick for true and a red cross for false, with no editing affordance — use it
+for status you can read but not change. Override any part:
+
+| Property | Purpose |
+|---|---|
+| `TrueIcon` / `FalseIcon` | `Geometry` glyphs, authored against a 24x24 box |
+| `TrueBrush` / `FalseBrush` | Accent colours |
+| `ShowBackgroundCircle`, `IconSize` | Disc behind the glyph, and overall size |
+| `TrueTemplate` / `FalseTemplate` / `NullTemplate` | Replace the visual entirely |
+| `TrueText` / `FalseText` | Tooltip, screen-reader name, and the text used by copy, export, grouping and filtering |
+
+A null value renders nothing, which reads as "unknown" rather than "false".
+
+### Sort member path
+
+```xml
+<cols:TreeGridTextColumn MappingName="StatusLabel" SortMemberPath="StatusOrder" />
+```
+
+Sorts on one property while displaying another — a formatted status that would
+otherwise sort alphabetically, or a name column ordered by a sort key. Defaults to
+`MappingName` when unset, and applies to grouping-panel sorts and the filter popup's
+sort buttons too.
+
+### Custom headers
+
+```xml
+<cols:TreeGridTextColumn.HeaderTemplate>
+    <DataTemplate>
+        <StackPanel Orientation="Horizontal">
+            <Ellipse Width="8" Height="8" Fill="#1F6FEB" />
+            <TextBlock Text="{Binding HeaderText}" Margin="5,0,0,0" />
+        </StackPanel>
+    </DataTemplate>
+</cols:TreeGridTextColumn.HeaderTemplate>
+```
+
+The DataContext is the column. Sort glyphs, filter button and resize gripper keep
+working, and the header text is still exposed to screen readers.
 
 ### Sizing
 

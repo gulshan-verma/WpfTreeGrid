@@ -18,11 +18,23 @@ namespace TreeGrid.Wpf.Columns
         public const string EditElementName = "PART_EditElement";
     }
 
-    /// <summary>Numeric column with culture-aware parsing and format support.</summary>
+    /// <summary>
+    /// Numeric column. The editor accepts digits only, so invalid text can never be
+    /// typed rather than being rejected at commit.
+    /// </summary>
     public class TreeGridNumericColumn : TreeGridColumn
     {
         public static readonly DependencyProperty NumberDecimalDigitsProperty = DependencyProperty.Register(
             nameof(NumberDecimalDigits), typeof(int), typeof(TreeGridNumericColumn), new PropertyMetadata(2));
+
+        public static readonly DependencyProperty AllowDecimalsProperty = DependencyProperty.Register(
+            nameof(AllowDecimals), typeof(bool?), typeof(TreeGridNumericColumn), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty AllowNegativeProperty = DependencyProperty.Register(
+            nameof(AllowNegative), typeof(bool?), typeof(TreeGridNumericColumn), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty UseGroupSeparatorProperty = DependencyProperty.Register(
+            nameof(UseGroupSeparator), typeof(bool), typeof(TreeGridNumericColumn), new PropertyMetadata(true));
 
         public static readonly DependencyProperty MinValueProperty = DependencyProperty.Register(
             nameof(MinValue), typeof(double), typeof(TreeGridNumericColumn),
@@ -37,10 +49,36 @@ namespace TreeGrid.Wpf.Columns
             TextAlignment = TextAlignment.Right;
         }
 
+        /// <summary>Digits shown after the separator, and the most that can be typed.</summary>
         public int NumberDecimalDigits
         {
             get => (int)GetValue(NumberDecimalDigitsProperty);
             set => SetValue(NumberDecimalDigitsProperty, value);
+        }
+
+        /// <summary>
+        /// Whether a decimal separator can be typed. Leave unset to decide
+        /// automatically: integral properties (int, long, short...) get integer-only
+        /// entry, and everything else follows <see cref="NumberDecimalDigits"/>.
+        /// </summary>
+        public bool? AllowDecimals
+        {
+            get => (bool?)GetValue(AllowDecimalsProperty);
+            set => SetValue(AllowDecimalsProperty, value);
+        }
+
+        /// <summary>Leave unset to allow a minus sign only when <see cref="MinValue"/> permits one.</summary>
+        public bool? AllowNegative
+        {
+            get => (bool?)GetValue(AllowNegativeProperty);
+            set => SetValue(AllowNegativeProperty, value);
+        }
+
+        /// <summary>Thousands separators in the displayed text. Never in the editor.</summary>
+        public bool UseGroupSeparator
+        {
+            get => (bool)GetValue(UseGroupSeparatorProperty);
+            set => SetValue(UseGroupSeparatorProperty, value);
         }
 
         public double MinValue
@@ -64,12 +102,15 @@ namespace TreeGrid.Wpf.Columns
                 return string.Format(CultureInfo.CurrentCulture, DisplayFormat, value);
 
             if (value is IFormattable formattable)
-                return formattable.ToString("N" + NumberDecimalDigits, CultureInfo.CurrentCulture);
+            {
+                var specifier = (UseGroupSeparator ? "N" : "F") + Math.Max(0, NumberDecimalDigits);
+                return formattable.ToString(specifier, CultureInfo.CurrentCulture);
+            }
 
             return value.ToString();
         }
 
-        public override FrameworkElement CreateEditElement() => new TextBox
+        public override FrameworkElement CreateEditElement() => new NumericTextBox
         {
             BorderThickness = new Thickness(0),
             Padding = new Thickness(6, 0, 6, 0),
@@ -77,32 +118,99 @@ namespace TreeGrid.Wpf.Columns
             TextAlignment = TextAlignment
         };
 
-        public override void PrepareEditElement(FrameworkElement element, object value)
+        public override void PrepareEditElement(FrameworkElement element, object value, object dataItem)
         {
-            if (!(element is TextBox box))
-                return;
+            if (!(element is NumericTextBox box))
+            {
+                // Do not delegate to base here: its default forwards to the two-argument
+                // overload, which forwards back, and the pair would recurse.
+                if (element is TextBox plain)
+                {
+                    plain.Text = value == null ? string.Empty : Convert.ToString(value, CultureInfo.CurrentCulture);
+                    plain.SelectAll();
+                }
 
-            // Editors show the raw value, not the display format: users should not have
-            // to delete thousands separators to type a number.
-            box.Text = value == null ? string.Empty : Convert.ToString(value, CultureInfo.CurrentCulture);
+                return;
+            }
+
+            var integral = IsIntegral(ResolveValueType(value, dataItem));
+
+            box.AllowDecimals = AllowDecimals ?? (!integral && NumberDecimalDigits > 0);
+            box.MaxDecimalDigits = box.AllowDecimals ? Math.Max(0, NumberDecimalDigits) : 0;
+            box.AllowNegative = AllowNegative ?? MinValue < 0;
+            box.TextAlignment = TextAlignment;
+
+            // Editors show the raw value: users should not have to delete thousands
+            // separators to change a number.
+            box.Text = value == null
+                ? string.Empty
+                : Convert.ToString(value, CultureInfo.CurrentCulture);
+
             box.SelectAll();
         }
+
+        public override void PrepareEditElement(FrameworkElement element, object value) =>
+            PrepareEditElement(element, value, null);
 
         public override object GetEditValue(FrameworkElement element)
         {
             if (!(element is TextBox box))
                 return null;
 
-            if (string.IsNullOrWhiteSpace(box.Text))
+            var text = box.Text;
+
+            if (string.IsNullOrWhiteSpace(text))
                 return null;
 
-            if (!double.TryParse(box.Text, NumberStyles.Any, CultureInfo.CurrentCulture, out var parsed))
-                return box.Text; // Let validation report the bad input.
+            if (!double.TryParse(text, NumberStyles.Any, CultureInfo.CurrentCulture, out var parsed))
+            {
+                // Only reachable for a partial entry such as "-" on its own.
+                return null;
+            }
+
+            if (element is NumericTextBox numeric)
+            {
+                var digits = numeric.AllowDecimals
+                    ? Math.Min(15, Math.Max(0, NumberDecimalDigits))
+                    : 0;
+
+                parsed = Math.Round(parsed, digits, MidpointRounding.AwayFromZero);
+            }
 
             if (parsed < MinValue) parsed = MinValue;
             if (parsed > MaxValue) parsed = MaxValue;
 
             return parsed;
+        }
+
+        /// <summary>Uses the live value's type, falling back to the declared property type.</summary>
+        private Type ResolveValueType(object value, object dataItem)
+        {
+            if (value != null)
+                return value.GetType();
+
+            if (dataItem == null || string.IsNullOrEmpty(MappingName))
+                return null;
+
+            var info = Data.PropertyAccessor.GetPropertyInfo(dataItem.GetType(), MappingName);
+
+            if (info == null)
+                return null;
+
+            return Nullable.GetUnderlyingType(info.PropertyType) ?? info.PropertyType;
+        }
+
+        private static bool IsIntegral(Type type)
+        {
+            if (type == null)
+                return false;
+
+            type = Nullable.GetUnderlyingType(type) ?? type;
+
+            return type == typeof(byte) || type == typeof(sbyte) ||
+                   type == typeof(short) || type == typeof(ushort) ||
+                   type == typeof(int) || type == typeof(uint) ||
+                   type == typeof(long) || type == typeof(ulong);
         }
     }
 
@@ -259,19 +367,41 @@ namespace TreeGrid.Wpf.Columns
         }
     }
 
-    /// <summary>Renders an arbitrary DataTemplate, with an optional separate edit template.</summary>
+    /// <summary>
+    /// Renders arbitrary content, in the spirit of <c>DataGridTemplateColumn</c>.
+    /// <para>
+    /// The template's DataContext is the data item, so bindings are written exactly as
+    /// they would be in a DataGrid. Editing happens through the template's own
+    /// bindings, so the grid does not write a value back on commit.
+    /// </para>
+    /// </summary>
     public class TreeGridTemplateColumn : TreeGridColumn
     {
         public static readonly DependencyProperty CellTemplateProperty = DependencyProperty.Register(
             nameof(CellTemplate), typeof(DataTemplate), typeof(TreeGridTemplateColumn), new PropertyMetadata(null));
 
+        public static readonly DependencyProperty CellTemplateSelectorProperty = DependencyProperty.Register(
+            nameof(CellTemplateSelector), typeof(DataTemplateSelector), typeof(TreeGridTemplateColumn),
+            new PropertyMetadata(null));
+
         public static readonly DependencyProperty EditTemplateProperty = DependencyProperty.Register(
             nameof(EditTemplate), typeof(DataTemplate), typeof(TreeGridTemplateColumn), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty EditTemplateSelectorProperty = DependencyProperty.Register(
+            nameof(EditTemplateSelector), typeof(DataTemplateSelector), typeof(TreeGridTemplateColumn),
+            new PropertyMetadata(null));
 
         public DataTemplate CellTemplate
         {
             get => (DataTemplate)GetValue(CellTemplateProperty);
             set => SetValue(CellTemplateProperty, value);
+        }
+
+        /// <summary>Chooses a template per row, for heterogeneous content.</summary>
+        public DataTemplateSelector CellTemplateSelector
+        {
+            get => (DataTemplateSelector)GetValue(CellTemplateSelectorProperty);
+            set => SetValue(CellTemplateSelectorProperty, value);
         }
 
         public DataTemplate EditTemplate
@@ -280,37 +410,53 @@ namespace TreeGrid.Wpf.Columns
             set => SetValue(EditTemplateProperty, value);
         }
 
-        public override bool HasCustomDisplay => CellTemplate != null;
+        public DataTemplateSelector EditTemplateSelector
+        {
+            get => (DataTemplateSelector)GetValue(EditTemplateSelectorProperty);
+            set => SetValue(EditTemplateSelectorProperty, value);
+        }
+
+        public override bool HasCustomDisplay => CellTemplate != null || CellTemplateSelector != null;
+
+        public override bool SupportsValueCommit => false;
+
+        /// <summary>Editing is only offered when there is something to edit with.</summary>
+        public bool HasEditTemplate => EditTemplate != null || EditTemplateSelector != null;
 
         public override FrameworkElement CreateDisplayElement() =>
-            new ContentPresenter { ContentTemplate = CellTemplate, VerticalAlignment = VerticalAlignment.Center };
+            new ContentPresenter { VerticalAlignment = VerticalAlignment.Center };
 
-        /// <summary>Template columns bind to the whole data item, not a single cell value.</summary>
         public override void PrepareDisplayElement(FrameworkElement element, object value, object dataItem)
         {
-            if (element is ContentPresenter presenter)
-            {
-                presenter.ContentTemplate = CellTemplate;
-                presenter.Content = dataItem;
-            }
+            if (!(element is ContentPresenter presenter))
+                return;
+
+            presenter.ContentTemplate = CellTemplate;
+            presenter.ContentTemplateSelector = CellTemplateSelector;
+
+            // Content last: assigning it after the template avoids a redundant
+            // container rebuild when a pooled cell is re-targeted.
+            presenter.Content = dataItem;
         }
 
         public override FrameworkElement CreateEditElement() =>
-            new ContentPresenter { ContentTemplate = EditTemplate ?? CellTemplate, VerticalAlignment = VerticalAlignment.Center };
+            new ContentPresenter { VerticalAlignment = VerticalAlignment.Center };
 
-        public override void PrepareEditElement(FrameworkElement element, object value)
+        public override void PrepareEditElement(FrameworkElement element, object value, object dataItem)
         {
-            if (element is ContentPresenter presenter)
-                presenter.ContentTemplate = EditTemplate ?? CellTemplate;
+            if (!(element is ContentPresenter presenter))
+                return;
+
+            presenter.ContentTemplate = EditTemplate ?? CellTemplate;
+            presenter.ContentTemplateSelector = EditTemplateSelector ?? CellTemplateSelector;
+
+            // Without the data item the edit template has no DataContext and renders
+            // empty - the reason template editing did not previously work.
+            presenter.Content = dataItem;
         }
 
-        /// <summary>
-        /// A template column edits through its own bindings, so there is no scalar to
-        /// hand back. Returning the unchanged value keeps the commit path a no-op.
-        /// </summary>
+        /// <summary>Nothing to hand back; the template's bindings have already written.</summary>
         public override object GetEditValue(FrameworkElement element) => null;
-
-        public override bool SupportsValueCommit => false;
     }
 
     public class TreeGridProgressBarColumn : TreeGridColumn

@@ -13,6 +13,8 @@
 
     <Window.Resources>
         <local:BrushNameConverter x:Key="BrushNameConverter" />
+        <local:BandBrushConverter x:Key="BandBrushConverter" />
+        <local:BandTextConverter x:Key="BandTextConverter" />
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,12,0,4" />
@@ -281,11 +283,52 @@
                     <cols:TreeGridTextColumn MappingName="LastName" HeaderText="Last Name" Width="130" />
                     <cols:TreeGridComboBoxColumn x:Name="TitleColumn" MappingName="Title"
                                                  HeaderText="Title" Width="150" />
+                    <!-- Digits only: letters, symbols and a second separator are all
+                         refused as you type. MinValue="0" also blocks the minus sign. -->
                     <cols:TreeGridNumericColumn MappingName="Salary" HeaderText="Salary"
-                                                Width="110" NumberDecimalDigits="0" />
-                    <cols:TreeGridCheckBoxColumn MappingName="Available" HeaderText="Available" Width="90" />
+                                                Width="120"
+                                                NumberDecimalDigits="2"
+                                                AllowDecimals="True"
+                                                MinValue="0" MaxValue="500000" />
+                    <!-- Read-only boolean rendered as an icon, not an editable checkbox -->
+                    <cols:TreeGridBooleanIconColumn MappingName="Available" HeaderText="Available"
+                                                    Width="90"
+                                                    TrueText="Available" FalseText="Unavailable" />
                     <cols:TreeGridProgressBarColumn MappingName="Completion" HeaderText="Completion" Width="130" />
                     <cols:TreeGridHyperlinkColumn MappingName="ProfileUrl" HeaderText="Profile" Width="170" />
+
+                    <!-- Custom template column: arbitrary content, DataContext is the record.
+                         SortMemberPath sorts by Salary even though the cell shows a band. -->
+                    <cols:TreeGridTemplateColumn HeaderText="Band" Width="150"
+                                                 MappingName="Salary"
+                                                 SortMemberPath="Salary">
+                        <cols:TreeGridTemplateColumn.HeaderTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="8" Height="8" Fill="#1F6FEB"
+                                             VerticalAlignment="Center" Margin="0,0,5,0" />
+                                    <TextBlock Text="{Binding HeaderText}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </cols:TreeGridTemplateColumn.HeaderTemplate>
+                        <cols:TreeGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="9" Padding="7,1" HorizontalAlignment="Left"
+                                        Margin="6,0,0,0"
+                                        Background="{Binding Salary, Converter={StaticResource BandBrushConverter}}">
+                                    <TextBlock Text="{Binding Salary, Converter={StaticResource BandTextConverter}}"
+                                               Foreground="White" FontSize="10" />
+                                </Border>
+                            </DataTemplate>
+                        </cols:TreeGridTemplateColumn.CellTemplate>
+                        <cols:TreeGridTemplateColumn.EditTemplate>
+                            <DataTemplate>
+                                <Slider Minimum="0" Maximum="250000" SmallChange="1000"
+                                        VerticalAlignment="Center"
+                                        Value="{Binding Salary, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </DataTemplate>
+                        </cols:TreeGridTemplateColumn.EditTemplate>
+                    </cols:TreeGridTemplateColumn>
                 </tg:TreeGridControl.Columns>
             </tg:TreeGridControl>
         </DockPanel>

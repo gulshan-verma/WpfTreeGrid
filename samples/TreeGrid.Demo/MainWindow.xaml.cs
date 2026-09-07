@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
+using TreeGrid.Wpf;
 using TreeGrid.Wpf.Columns;
 using TreeGrid.Wpf.Data;
 using TreeGrid.Wpf.Diagnostics;
@@ -21,7 +22,6 @@ using TreeGrid.Wpf.Selection;
 using TreeGrid.Wpf.Grouping;
 using TreeGrid.Wpf.Styling;
 using TreeGrid.Wpf.Validation;
-using TreeGrid.Wpf;
 
 namespace TreeGrid.Demo
 {
@@ -452,6 +452,35 @@ namespace TreeGrid.Demo
             MessageBox.Show(GridBenchmark.Format(results), "Benchmark",
                 MessageBoxButton.OK, MessageBoxImage.None);
         }
+    }
+
+    /// <summary>Colours the salary band chip in the template column.</summary>
+    public sealed class BandBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var salary = System.Convert.ToDouble(value ?? 0d, culture);
+
+            if (salary >= 150000) return new SolidColorBrush(Color.FromRgb(0x1A, 0x7F, 0x37));
+            if (salary >= 90000) return new SolidColorBrush(Color.FromRgb(0x1F, 0x6F, 0xEB));
+            return new SolidColorBrush(Color.FromRgb(0x9A, 0x67, 0x00));
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+            Binding.DoNothing;
+    }
+
+    /// <summary>Labels the salary band shown by the template column.</summary>
+    public sealed class BandTextConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var salary = System.Convert.ToDouble(value ?? 0d, culture);
+            return salary >= 150000 ? "Senior" : salary >= 90000 ? "Mid" : "Junior";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+            Binding.DoNothing;
     }
 
     /// <summary>Shows a readable name beside each colour swatch in the palette combos.</summary>

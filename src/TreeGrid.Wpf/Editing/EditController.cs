@@ -175,7 +175,7 @@ namespace TreeGrid.Wpf.Editing
                 : PropertyAccessor.GetValue(node.Item, column.MappingName);
 
             _editElement = column.CreateEditElement();
-            column.PrepareEditElement(_editElement, _originalValue);
+            column.PrepareEditElement(_editElement, _originalValue, node.Item);
 
             return _editElement;
         }
