@@ -37,8 +37,9 @@ namespace TreeGrid.Wpf.Export
             IReadOnlyList<ExportRow> rows, GridExportOptions options)
         {
             // QuestPDF requires a licence declaration; the Community terms cover
-            // open-source and small-business use.
-            QuestPDF.Settings.License = LicenseType.Community;
+            // open-source and small-business use. Respect a licence the host
+            // application has already declared rather than overwriting it.
+            QuestPDF.Settings.License ??= LicenseType.Community;
 
             var levelColumn = options.HierarchyStyle == HierarchyExportStyle.LevelColumn;
             var widths = ResolveWidths(columns);

@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>TreeGrid.Wpf.Export</name>
+    </assembly>
+    <members>
+        <member name="T:TreeGrid.Wpf.Export.ExcelExporter">
+            <summary>
+            Writes an .xlsx workbook.
+            <para>
+            With <see cref="F:TreeGrid.Wpf.Export.HierarchyExportStyle.Outline"/> the tree becomes Excel's own
+            row grouping, so the collapse controls in the sheet margin mirror the grid's
+            expanders. That is the only style that keeps the hierarchy genuinely
+            interactive after export.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Export.ExcelExporter.FreezeHeaderRow">
+            <summary>Freeze the header row in the produced sheet.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Export.ExcelExporter.AddAutoFilter">
+            <summary>Add Excel's filter dropdowns to the header row.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Export.ExcelExporter.WriteValue(ClosedXML.Excel.IXLCell,System.Object,System.String,TreeGrid.Wpf.Columns.TreeGridColumn,TreeGrid.Wpf.Export.GridExportOptions)">
+            <summary>
+            Writes the typed value where possible so Excel can sort and total the
+            column, falling back to the formatted string only for values it cannot
+            represent natively.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Export.PdfExporter">
+            <summary>
+            Renders the grid to PDF.
+            <para>
+            Column widths come from the grid's own resolved widths, scaled to the page.
+            Using the on-screen proportions keeps the exported document recognisable as
+            the thing the user was looking at.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Export.PdfExporter.IndentPerLevel">
+            <summary>Points of left padding applied per hierarchy level.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Export.PdfExporter.ResolveWidths(System.Collections.Generic.IReadOnlyList{TreeGrid.Wpf.Columns.TreeGridColumn})">
+            <summary>
+            Converts on-screen pixel widths into relative units. Columns that were never
+            measured fall back to an equal share rather than collapsing to nothing.
+            </summary>
+        </member>
+    </members>
+</doc>

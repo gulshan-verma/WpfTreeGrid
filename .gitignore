@@ -12,3 +12,5 @@
 /src/TreeGrid.Wpf.Export/obj
 /.vs/TreeGrid
 /.vs/*
+
+artifacts/

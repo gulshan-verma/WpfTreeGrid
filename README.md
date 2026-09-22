@@ -1,5 +1,10 @@
 # TreeGrid.Wpf
 
+[![NuGet TreeGrid.Wpf](https://img.shields.io/nuget/v/TreeGrid.Wpf.svg?label=TreeGrid.Wpf)](https://www.nuget.org/packages/TreeGrid.Wpf/)
+[![NuGet TreeGrid.Wpf.Export](https://img.shields.io/nuget/v/TreeGrid.Wpf.Export.svg?label=TreeGrid.Wpf.Export)](https://www.nuget.org/packages/TreeGrid.Wpf.Export/)
+[![Downloads](https://img.shields.io/nuget/dt/TreeGrid.Wpf.svg)](https://www.nuget.org/packages/TreeGrid.Wpf/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A multi-column tree grid for WPF, built from scratch for .NET 8. Hierarchical data
 binding, row and column virtualization, sorting, Excel-style filtering, editing with
 four validation sources, frozen panes, stacked headers, drag-and-drop, clipboard
@@ -7,6 +12,11 @@ interop, and export to Excel, CSV and PDF.
 
 Clean-room implementation. No third-party control assemblies are referenced or
 decompiled, and the core library has no external dependencies at all.
+
+```bash
+dotnet add package TreeGrid.Wpf
+dotnet add package TreeGrid.Wpf.Export   # optional: Excel and PDF export
+```
 
 ```xml
 <tg:TreeGridControl ItemsSource="{Binding Staff}"
@@ -27,6 +37,7 @@ decompiled, and the core library has no external dependencies at all.
 ## Contents
 
 - [Screenshots](#screenshots)
+- [Installation](#installation)
 - [Requirements and build](#requirements-and-build)
 - [Projects](#projects)
 - [Quick start](#quick-start)
@@ -58,18 +69,39 @@ decompiled, and the core library has no external dependencies at all.
 
 ## Screenshots
 
-> **Not captured yet.** Run the demo
-> (`dotnet run --project samples/TreeGrid.Demo`), save the shots below into
-> `docs/screenshots/`, and they will render here.
-> [`docs/screenshots/README.md`](docs/screenshots/README.md) has the checklist.
+The demo's feature explorer (`samples/TreeGrid.Demo`): every toggle in the sidebar
+applies live to the grid. Shown here with checkbox selection, filter buttons, the
+group-by panel, and boolean-icon, progress-bar, hyperlink and badge columns.
 
-| | |
-|---|---|
-| ![Feature explorer](docs/screenshots/feature-explorer.png)<br>**Feature explorer** — the demo and its live feature sidebar | ![Filtering](docs/screenshots/filtering.png)<br>**Excel-style filter** — value checklist plus condition filters |
-| ![Editing](docs/screenshots/editing.png)<br>**Editing and validation** — typed editors, error adorners | ![Frozen and stacked](docs/screenshots/frozen-stacked.png)<br>**Frozen panes and stacked headers** |
-| ![Drag and drop](docs/screenshots/drag-drop.png)<br>**Row drag and drop** — indented drop indicator | ![Dark theme](docs/screenshots/dark-theme.png)<br>**Dark theme** — brush-only dictionary swap |
+**Light theme**
+
+![TreeGrid feature explorer, light theme](Screenshots/Light.png)
+
+**Dark theme** — a brush-only resource dictionary swap; the sidebar and chrome follow
+
+![TreeGrid feature explorer, dark theme](Screenshots/Dark.png)
 
 ---
+
+## Installation
+
+| Package | NuGet | Install |
+|---|---|---|
+| [TreeGrid.Wpf](https://www.nuget.org/packages/TreeGrid.Wpf/) | [![NuGet](https://img.shields.io/nuget/v/TreeGrid.Wpf.svg)](https://www.nuget.org/packages/TreeGrid.Wpf/) | `dotnet add package TreeGrid.Wpf` |
+| [TreeGrid.Wpf.Export](https://www.nuget.org/packages/TreeGrid.Wpf.Export/) | [![NuGet](https://img.shields.io/nuget/v/TreeGrid.Wpf.Export.svg)](https://www.nuget.org/packages/TreeGrid.Wpf.Export/) | `dotnet add package TreeGrid.Wpf.Export` |
+
+Or in the project file:
+
+```xml
+<ItemGroup>
+  <PackageReference Include="TreeGrid.Wpf" Version="1.0.0" />
+  <!-- Optional: only if you need .xlsx or .pdf export -->
+  <PackageReference Include="TreeGrid.Wpf.Export" Version="1.0.0" />
+</ItemGroup>
+```
+
+Both packages target `net8.0-windows`. `TreeGrid.Wpf.Export` depends on
+`TreeGrid.Wpf`, so referencing it pulls the core package in automatically.
 
 ## Requirements and build
 
@@ -85,8 +117,8 @@ dotnet run --project samples/TreeGrid.Demo
 
 | Project | Dependencies | Purpose |
 |---|---|---|
-| `TreeGrid.Wpf` | **None** | The control, plus CSV export. |
-| `TreeGrid.Wpf.Export` | ClosedXML, QuestPDF | Optional. Reference only if you need xlsx or pdf. |
+| [`TreeGrid.Wpf`](https://www.nuget.org/packages/TreeGrid.Wpf/) | **None** | The control, plus CSV export. |
+| [`TreeGrid.Wpf.Export`](https://www.nuget.org/packages/TreeGrid.Wpf.Export/) | ClosedXML, QuestPDF | Optional. Reference only if you need xlsx or pdf. |
 | `TreeGrid.Demo` | Both | Feature explorer. |
 
 The split is deliberate: an application that only needs CSV should not pull two
@@ -1156,7 +1188,7 @@ A phase-by-phase build history is in
 
 ## Licence
 
-No licence file is included — add one before publishing.
+[MIT](LICENSE) © 2026 Gulshan Verma.
 
 `TreeGrid.Wpf.Export` depends on ClosedXML (MIT) and QuestPDF, whose Community
 licence carries revenue-based eligibility terms. Check that QuestPDF's terms fit your

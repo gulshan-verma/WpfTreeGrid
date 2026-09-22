@@ -7,7 +7,18 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>TreeGrid.Wpf</RootNamespace>
     <AssemblyName>TreeGrid.Wpf</AssemblyName>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>TreeGrid.Wpf</PackageId>
+    <Title>TreeGrid for WPF</Title>
+    <Description>A multi-column tree grid control for WPF (.NET 8). Hierarchical data binding, row and column virtualization, sorting, Excel-style filtering, editing with validation, frozen panes, stacked headers, grouping, footers, drag-and-drop, clipboard support and CSV export. No external dependencies.</Description>
+    <PackageTags>wpf;treegrid;tree-grid;treelistview;datagrid;grid;hierarchical;virtualization;control</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\docs\nuget\TreeGrid.Wpf.md" Pack="true" PackagePath="README.md" Visible="false" />
+  </ItemGroup>
 
 </Project>

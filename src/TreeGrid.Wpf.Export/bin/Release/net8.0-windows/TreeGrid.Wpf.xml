@@ -1,0 +1,2506 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>TreeGrid.Wpf</name>
+    </assembly>
+    <members>
+        <member name="F:TreeGrid.Wpf.ClipboardSupport.GridCopyOptions.IncludeHierarchyIndent">
+            <summary>Prefix each row with tabs matching its hierarchy level.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.ClipboardSupport.GridPasteMode.Overwrite">
+            <summary>Overwrite the cells under the paste target.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.ClipboardSupport.GridPasteMode.FillEmptyOnly">
+            <summary>Only fill cells that are currently empty.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.ClipboardSupport.GridPasteMode.Manual">
+            <summary>Do nothing; the host handles PasteContent.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.ClipboardSupport.CopyContentEventArgs.ClipboardText">
+            <summary>Set to override what reaches the clipboard.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.ClipboardSupport.GridPasteResult">
+            <summary>Outcome of a paste, so hosts can report what actually landed.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.ClipboardSupport.GridPasteResult.TruncatedRows">
+            <summary>Rows in the clipboard that ran past the end of the grid.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.ClipboardSupport.ClipboardController">
+            <summary>
+            Clipboard interop.
+            <para>
+            Three formats go onto the clipboard at once: tab-separated text (what Excel
+            reads on paste), CSV, and HTML. Excel prefers HTML when present, which is what
+            preserves the table structure rather than dumping everything into one column.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.ClipboardSupport.ClipboardController.WrapHtmlFragment(System.String)">
+            <summary>
+            CF_HTML requires a header with byte offsets into the payload. They must be
+            computed after the header length is known, so the header is built with
+            placeholders and then rewritten.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.ClipboardSupport.ClipboardController.Paste(TreeGrid.Wpf.Data.TreeNode,System.Int32,TreeGrid.Wpf.Data.FlatTreeView,System.Collections.Generic.IReadOnlyList{TreeGrid.Wpf.Columns.TreeGridColumn},System.Func{TreeGrid.Wpf.Data.TreeNode,TreeGrid.Wpf.Columns.TreeGridColumn,System.String,System.Boolean},System.Boolean)">
+            <summary>
+            Reads tab-separated clipboard text and writes it starting at the target
+            cell. Returns the number of cells actually written.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.ClipboardSupport.ClipboardController.ParseTabular(System.String)">
+            <summary>
+            Splits clipboard text into rows and cells.
+            <para>
+            Excel quotes any cell containing a tab or a line break, so splitting on the
+            delimiters directly corrupts multi-line cells and shifts everything after
+            them. This walks the text instead, honouring quotes and doubled quotes.
+            </para>
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.ColumnReorderingEventArgs">
+            <summary>Raised before a drag moves a column. Cancel to leave it where it is.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.ColumnReorderingEventArgs.OldIndex">
+            <summary>Index in the Columns collection, not the visible index.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.ColumnReorderedEventArgs">
+            <summary>Raised after a column has moved, by drag or in code.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.NumericTextBox">
+            <summary>
+            A text box that only ever contains a number.
+            <para>
+            Input is rejected before it reaches the buffer rather than being corrected
+            afterwards, so the caret never jumps and the user never sees text that is about
+            to be thrown away. Paste is filtered through the same rule, since that is the
+            usual way rubbish gets into a numeric field.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.NumericTextBox.AllowDecimals">
+            <summary>Permit a decimal separator. False means integers only.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.NumericTextBox.AllowNegative">
+            <summary>Permit a leading negative sign.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.NumericTextBox.MaxDecimalDigits">
+            <summary>Digits allowed after the separator. Negative means unlimited.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.NumericTextBox.TranslateInput(System.String)">
+            <summary>Maps a typed character to what should actually be inserted, or null to reject.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.NumericTextBox.Clean(System.String)">
+            <summary>Removes group separators and anything else that is not part of a number.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.NumericTextBox.IsValid(System.String)">
+            <summary>
+            Accepts partial input. "-" and "1." are not numbers yet but are valid on the
+            way to one, and refusing them would make the field impossible to type in.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn">
+            <summary>
+            Displays a boolean as an icon rather than a checkbox, and never enters edit mode.
+            <para>
+            A checkbox invites clicking; this column is for status you can read but not
+            change. Defaults are a green tick and a red cross, both overridable - supply a
+            <see cref="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.TrueIcon"/>/<see cref="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.FalseIcon"/> geometry for a different glyph,
+            or a <see cref="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.TrueTemplate"/>/<see cref="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.FalseTemplate"/> for full control.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.TrueIcon">
+            <summary>Glyph for true. Author against a 24x24 box. Defaults to a tick.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.FalseIcon">
+            <summary>Glyph for false. Author against a 24x24 box. Defaults to a cross.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.ShowBackgroundCircle">
+            <summary>Draws a tinted disc behind the glyph.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.TrueTemplate">
+            <summary>Replaces the whole true visual. DataContext is the data item.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.NullTemplate">
+            <summary>Shown for a null value. Nothing is drawn when unset.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.TrueText">
+            <summary>Screen-reader text and tooltip for true.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.SupportsValueCommit">
+            <summary>Read-only by definition; the grid never opens an editor for it.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.TreeGridBooleanIconColumn.ToBool(System.Object)">
+            <summary>Accepts bools, nullable bools and anything parseable, like the checkbox column.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.TreeGridCheckBoxColumn">
+            <summary>
+            Renders a bound boolean as a checkbox. Distinct from the grid-level
+            <c>AllowCheckBoxSelection</c> feature, which puts a node checkbox in the
+            expander column and drives the hierarchy cascade.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.TreeGridCheckBoxColumn.ToCheckState(System.Object)">
+            <summary>Coerces the bound value into a nullable bool for the checkbox.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Columns.ColumnSizerMode.None">
+            <summary>Use the explicit Width, or DefaultColumnWidth when unset.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Columns.ColumnSizerMode.SizeToCells">
+            <summary>Fit the widest cell in the column.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Columns.ColumnSizerMode.SizeToHeader">
+            <summary>Fit the header text.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Columns.ColumnSizerMode.AllCells">
+            <summary>Fit the wider of header and cells.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Columns.ColumnSizerMode.Star">
+            <summary>Share leftover viewport width proportionally.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Columns.ColumnSizerMode.LastColumnFill">
+            <summary>Auto-fit all, then stretch the last column to fill the viewport.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.AllowGrouping">
+            <summary>Set false to stop this column being dropped on the group panel.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.SortMemberPath">
+            <summary>
+            Property used when sorting this column, when it should differ from what is
+            displayed. Falls back to <see cref="P:TreeGrid.Wpf.Columns.TreeGridColumn.MappingName"/>.
+            <para>
+            Useful when the displayed value does not sort sensibly - a formatted status
+            string, or a name column that should order by a sort key.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.HeaderTemplate">
+            <summary>Custom header content. The template's DataContext is the column.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.Host">
+            <summary>
+            The grid this column belongs to. Set when the column enters a
+            <see cref="T:TreeGrid.Wpf.Columns.TreeGridColumns"/> collection, and needed because a column is a
+            plain DependencyObject with no place in any visual tree - without this
+            back-reference, changing IsHidden could not trigger a relayout.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.ActualWidth">
+            <summary>Resolved width in device pixels, written by the layout pass.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.LeftOffset">
+            <summary>Left edge relative to the full column strip, written by the layout pass.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.ResolvedHeaderText">
+            <summary>Header text falls back to the mapping name, as most grids do.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.ResolvedSortMemberPath">
+            <summary>The property sorting actually reads.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.HasCustomDisplay">
+            <summary>
+            True when the column renders through a custom element rather than the
+            built-in text block. Template, progress and hyperlink columns override this.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridColumn.SupportsValueCommit">
+            <summary>
+            False for columns that edit through their own bindings (template columns),
+            where there is no scalar value for the grid to write back.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.TreeGridColumn.CreateDisplayElement">
+            <summary>Creates the element used to render a cell when HasCustomDisplay is true.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.TreeGridColumn.PrepareDisplayElement(System.Windows.FrameworkElement,System.Object,System.Object)">
+            <summary>Re-targets a pooled display element onto a new value.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.TreeGridColumn.CreateEditElement">
+            <summary>Creates the editor. Defaults to a borderless text box.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.TreeGridColumn.PrepareEditElement(System.Windows.FrameworkElement,System.Object,System.Object)">
+            <summary>
+            Overload that also receives the record. Template columns edit through their
+            own bindings and need the data item, not just the cell value; the two-argument
+            form remains for column types that only care about the value.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.TreeGridColumn.FormatValue(System.Object)">
+            <summary>Formats a raw value for display. Overridden by typed columns.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.TreeGridTextColumn">
+            <summary>Plain text column. Further column types arrive in Phase 4.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.ITreeGridColumnHost">
+            <summary>Implemented by the grid so columns can request a relayout.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.ColumnEditorSupport">
+            <summary>
+            Column types supply their own editors through these hooks. The grid never
+            switches on column type; it asks the column for an element, hands it a value,
+            and asks for the value back when the edit commits.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.TreeGridNumericColumn">
+            <summary>
+            Numeric column. The editor accepts digits only, so invalid text can never be
+            typed rather than being rejected at commit.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridNumericColumn.NumberDecimalDigits">
+            <summary>Digits shown after the separator, and the most that can be typed.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridNumericColumn.AllowDecimals">
+            <summary>
+            Whether a decimal separator can be typed. Leave unset to decide
+            automatically: integral properties (int, long, short...) get integer-only
+            entry, and everything else follows <see cref="P:TreeGrid.Wpf.Columns.TreeGridNumericColumn.NumberDecimalDigits"/>.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridNumericColumn.AllowNegative">
+            <summary>Leave unset to allow a minus sign only when <see cref="P:TreeGrid.Wpf.Columns.TreeGridNumericColumn.MinValue"/> permits one.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridNumericColumn.UseGroupSeparator">
+            <summary>Thousands separators in the displayed text. Never in the editor.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.TreeGridNumericColumn.ResolveValueType(System.Object,System.Object)">
+            <summary>Uses the live value's type, falling back to the declared property type.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridComboBoxColumn.HasItems">
+            <summary>
+            Columns are plain DependencyObjects with no place in the visual or logical
+            tree, so bindings using RelativeSource or ElementName cannot resolve against
+            them. Set this from code-behind, or use a static resource.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Columns.TreeGridTemplateColumn">
+            <summary>
+            Renders arbitrary content, in the spirit of <c>DataGridTemplateColumn</c>.
+            <para>
+            The template's DataContext is the data item, so bindings are written exactly as
+            they would be in a DataGrid. Editing happens through the template's own
+            bindings, so the grid does not write a value back on commit.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridTemplateColumn.CellTemplateSelector">
+            <summary>Chooses a template per row, for heterogeneous content.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Columns.TreeGridTemplateColumn.HasEditTemplate">
+            <summary>Editing is only offered when there is something to edit with.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Columns.TreeGridTemplateColumn.GetEditValue(System.Windows.FrameworkElement)">
+            <summary>Nothing to hand back; the template's bindings have already written.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.ContextMenus.GridContextMenuInfo">
+            <summary>Base for the object set as a context menu's DataContext.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.ContextMenus.GridContextMenuOpeningEventArgs.ContextMenu">
+            <summary>Replace this to substitute a different menu for this one opening.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.ContextMenus.DefaultContextMenus">
+            <summary>
+            Builds the stock menus used when the host has not supplied its own.
+            <para>
+            Items are rebuilt each time rather than cached, because nearly every entry is
+            state-dependent: sort direction, whether a filter is applied, whether the
+            column is already frozen.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.ContextMenus.DefaultContextMenus.AppendCustomItems(System.Windows.Controls.ContextMenu,System.Collections.Generic.IEnumerable{System.Windows.FrameworkElement})">
+            <summary>
+            Appends host-supplied items to a stock menu.
+            <para>
+            An item can only have one logical parent, and the stock menus are rebuilt on
+            every right-click, so each item is detached from the previous menu before
+            being added again. Without that, the second right-click throws.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.FlatTreeViewChangedEventArgs.IsReset">
+            <summary>True for wholesale rebuilds (source swap, re-sort, re-filter).</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Data.FlatTreeView">
+            <summary>
+            Maintains the flattened, currently-visible projection of the tree.
+            <para>
+            This is the piece everything else stands on: the virtualizer asks it for
+            "node at row N", and expand/collapse is a splice into a single
+            <see cref="T:System.Collections.Generic.List`1"/> rather than a rebuild. Expanding a node costs
+            O(visible descendants + tail reindex), not O(total nodes).
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.FlatTreeView.MutableRoots">
+            <summary>
+            Direct access for the data source's incremental updates. Callers must call
+            <see cref="M:TreeGrid.Wpf.Data.FlatTreeView.Rebuild"/> afterwards; nothing else should touch this.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.FlatTreeView.Rebuild">
+            <summary>
+            Rebuilds the whole flat list from the root collection, honouring current
+            expansion and filter state. Used after sorting, filtering or a source swap.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.FlatTreeView.Expand(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>
+            Makes the node's visible descendants part of the flat view.
+            Returns false when the node is already expanded or has nothing to show.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.FlatTreeView.Collapse(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>Removes the node's descendants from the flat view, keeping their own expansion state.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.FlatTreeView.EnsureVisible(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>Opens every collapsed ancestor so the node becomes visible.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.FlatTreeView.SortHierarchy(System.Comparison{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Sorts every sibling group with the same comparison, then rebuilds.
+            Sorting the flat list directly would separate children from their parents,
+            so the hierarchy is sorted level by level instead.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.FlatTreeView.SortSubtree(TreeGrid.Wpf.Data.TreeNode,System.Comparison{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>Sorts one node's children in place, without a full rebuild.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.FlatTreeView.RefreshChildren(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>
+            Called after load-on-demand supplies children for an already-expanded node,
+            or after an insert/remove on a child collection.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.FlatTreeView.CountVisibleDescendants(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>
+            Number of rows the node currently occupies in the flat view, excluding itself.
+            Walks the flat list by level rather than the tree, which is cheaper and
+            naturally respects filtering.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Data.RequestTreeItemsEventArgs">
+            <summary>
+            Raised the first time a node is expanded when the grid is in unbound
+            (load-on-demand) mode. Handlers set <see cref="P:TreeGrid.Wpf.Data.RequestTreeItemsEventArgs.ChildItems"/>.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.RequestTreeItemsEventArgs.ParentItem">
+            <summary>Null for root-level requests.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.RequestTreeItemsEventArgs.ChildItems">
+            <summary>Set by the handler. Null or empty means the node turns into a leaf.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Data.PropertyAccessor">
+            <summary>
+            Caches compiled delegates for property access. Reflection on every cell of a
+            100k-row grid is the single easiest way to make a tree grid feel slow, so all
+            property reads in the data layer go through here.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.PropertyAccessor.ResolveProperty(System.Type,System.String)">
+            <summary>Supports dotted paths such as "Manager.Name".</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Data.TreeGridBindingMode.Hierarchical">
+            <summary>Each item exposes a child collection named by ChildPropertyName.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Data.TreeGridBindingMode.SelfRelational">
+            <summary>Flat collection linked by Id / ParentId properties.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Data.TreeGridBindingMode.Unbound">
+            <summary>No source walk at all; children arrive through RequestTreeItems.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Data.TreeGridDataSource">
+            <summary>
+            Turns an ItemsSource into a node tree and keeps it in sync. Owns the
+            <see cref="T:TreeGrid.Wpf.Data.FlatTreeView"/> and is the only class allowed to build nodes.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeGridDataSource.ChildPropertyName">
+            <summary>Property holding the child collection (Hierarchical mode).</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeGridDataSource.IdPropertyName">
+            <summary>Property holding the node's own key (SelfRelational mode).</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeGridDataSource.ParentIdPropertyName">
+            <summary>Property holding the parent's key (SelfRelational mode).</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeGridDataSource.SelfRelationRootValue">
+            <summary>Parent-id value that marks a root. Defaults to null.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeGridDataSource.HasChildNodesResolver">
+            <summary>
+            Called when an item's leaf-ness cannot be determined from the source, i.e.
+            in Unbound mode. Return true to draw an expander before children are known.
+            </summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.Data.TreeGridDataSource.RequestTreeItems">
+            <summary>Synchronous load-on-demand hook.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeGridDataSource.RequestTreeItemsAsync">
+            <summary>
+            Asynchronous load-on-demand hook. When set it takes priority over
+            <see cref="E:TreeGrid.Wpf.Data.TreeGridDataSource.RequestTreeItems"/>. The node shows a busy indicator until the
+            task completes.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.TreeGridDataSource.LoadChildrenAsync(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>
+            Fetches children for a node. Awaits the async hook when one is supplied,
+            otherwise raises the synchronous event. Safe to call more than once - the
+            second call is a no-op while a fetch is in flight.
+            </summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.Data.TreeGridDataSource.IncrementalChange">
+            <summary>
+            Raised when the source changed in a way that was handled incrementally, so
+            the grid can rebuild the flat view without discarding selection or scroll.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.TreeGridDataSource.BeginSourceUpdate">
+            <summary>
+            Suspends reaction to source collection changes.
+            <para>
+            Used while the grid rewrites the source for a drop: each Remove and Insert
+            would otherwise be processed incrementally, fighting the single rebuild that
+            follows.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.TreeGridDataSource.ForgetSubtree(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>Drops a subtree from the item-to-node map so it can be collected.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Data.TreeNode">
+            <summary>
+            Wraps a single data item and carries its position in the hierarchy.
+            Nodes are created lazily: a node's children are only materialised when it is
+            first expanded (or when the source is fully in memory and eagerly walked).
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.Item">
+            <summary>The underlying business object. Null for group headers.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.GroupInfo">
+            <summary>
+            Set when this node is a synthetic group header rather than a record.
+            Group headers carry no data item, so anything that reads cell values must
+            check this first.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.GroupCaption">
+            <summary>Caption shown on a group header row.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.Level">
+            <summary>Zero-based depth. Root nodes are level 0.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.FlatIndex">
+            <summary>
+            Index into the flattened view, or -1 when the node is not currently visible
+            (an ancestor is collapsed, or the node is filtered out). Maintained by
+            <see cref="T:TreeGrid.Wpf.Data.FlatTreeView"/> so index lookups stay O(1).
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.SourceIndex">
+            <summary>
+            Position among siblings as originally supplied by the source. Sorting
+            reorders <see cref="P:TreeGrid.Wpf.Data.TreeNode.ChildNodes"/>, so this is the only record of the
+            source order and is what "no sort" restores.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.IsChildNodesPopulated">
+            <summary>True once children have actually been fetched.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.IsFilteredOut">
+            <summary>Set to false by a filter pass; filtered nodes never enter the flat view.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.HasChildNodes">
+            <summary>
+            Whether an expander should be drawn. For load-on-demand sources this can be
+            true before any child has been fetched.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.IsExpanded">
+            <summary>
+            Do not set this directly to expand a node - call
+            <see cref="M:TreeGrid.Wpf.Data.FlatTreeView.Expand(TreeGrid.Wpf.Data.TreeNode)"/> so the flattened view stays in sync.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.IsLoading">
+            <summary>True while an async load-on-demand fetch is in flight for this node.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Data.TreeNode.IsChecked">
+            <summary>Tri-state value used by the checkbox-selection feature (Phase 2).</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.TreeNode.IsDescendantOf(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>Walks up the chain; used by filtering and by drag-drop validation.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Data.TreeNodeFactory">
+            <summary>
+            Creates nodes for code outside the data source. <see cref="T:TreeGrid.Wpf.Data.TreeNode"/> keeps an
+            internal constructor so that only the data layer can mint nodes; grouping needs
+            the same privilege without widening it to the whole assembly's callers.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Data.TreeNodeFactory.CreateRecordLeaf(System.Object,TreeGrid.Wpf.Data.TreeNode,System.Int32)">
+            <summary>
+            A record leaf under a group. This is a fresh node rather than the original,
+            because the original still belongs to the ungrouped tree that will be
+            restored when grouping is cleared.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Diagnostics.GridBenchmark">
+            <summary>
+            Measures the operations that decide whether the grid feels fast.
+            <para>
+            Allocation is reported alongside time because the failure mode for a virtualized
+            grid is usually not slow code, it is garbage: allocating per scroll frame
+            produces gen-0 collections that show up as stutter rather than as a slow
+            average.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Diagnostics.GridBenchmark.RunStandardSuite(TreeGrid.Wpf.TreeGridControl)">
+            <summary>Runs the standard suite against a live grid.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Diagnostics.GridBenchmark.MeasureScroll(TreeGrid.Wpf.TreeGridControl,System.Int32)">
+            <summary>
+            Times a simulated scroll. Layout runs on the dispatcher, so this measures
+            the work the grid does per frame, not the frames themselves.
+            </summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.DragDropSupport.RowDropPosition.Above">
+            <summary>Insert as a sibling above the target.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.DragDropSupport.RowDropPosition.Below">
+            <summary>Insert as a sibling below the target.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.DragDropSupport.RowDropPosition.Into">
+            <summary>Insert as a child of the target.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDragOverEventArgs.IsAllowed">
+            <summary>Set false to refuse this drop point.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDroppedEventArgs.HandledByHost">
+            <summary>
+            Set true if the handler relocated the underlying data itself. The grid then
+            reloads rather than moving nodes, which keeps the source authoritative.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.DragDropSupport.RowDropOutcome">
+            <summary>What a completed drop resolved to, so the grid can act on it.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDropOutcome.HandledByHost">
+            <summary>True when a handler said it relocated the records itself.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDropOutcome.NodesMoved">
+            <summary>True when this call rearranged the node tree.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.DragDropSupport.RowDragDropController">
+            <summary>
+            Row reordering.
+            <para>
+            Moving nodes and moving the underlying data are deliberately separate. The node
+            tree can always be rearranged; the source collections cannot, since a
+            self-relational list needs a parent-id rewrite while a hierarchical one needs
+            items moved between child collections. Hosts that care handle
+            <c>RowDropped</c> and set <see cref="P:TreeGrid.Wpf.DragDropSupport.RowDroppedEventArgs.HandledByHost"/>.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDragDropController.EdgeThreshold">
+            <summary>Fraction of row height at each edge that means "sibling" rather than "child".</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.DragDropSupport.RowDragDropController.Update(TreeGrid.Wpf.Data.TreeNode,System.Double,System.Double)">
+            <summary>Resolves the drop point from a pointer position within a row.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.DragDropSupport.RowDragDropController.Complete(System.Collections.Generic.IList{TreeGrid.Wpf.Data.TreeNode},System.Boolean)">
+            <summary>
+            Completes the drop. The root list must be supplied because a node can both
+            leave and enter it, and only the flat view owns that collection.
+            <para>
+            Pass <paramref name="moveNodes"/> false when the caller is going to update
+            the source collections instead and rebuild from them; moving nodes as well
+            would apply the same relocation twice.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.DragDropSupport.RowDragDropController.MoveNodes(System.Collections.Generic.IReadOnlyList{TreeGrid.Wpf.Data.TreeNode},TreeGrid.Wpf.Data.TreeNode,TreeGrid.Wpf.DragDropSupport.RowDropPosition,System.Collections.Generic.IList{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Relocates nodes within the node tree.
+            <para>
+            Root nodes are ordinary nodes whose sibling list happens to be the root
+            collection. Treating that list as just another sibling list is what lets a
+            child be promoted to a root, and a root be demoted into a child.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.DragDropSupport.RowDragDropController.Detach(TreeGrid.Wpf.Data.TreeNode,System.Collections.Generic.IList{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Removes a node from whichever list currently holds it. A root lives in the
+            root collection rather than in a parent's ChildNodes, and missing that case
+            left dragged roots visible in their old position.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.DragDropSupport.RowDragDropController.Reindex(System.Collections.Generic.IList{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Rewrites sibling order after a move. Without this the nodes keep their
+            original SourceIndex, so clearing the sort would snap them back to where
+            they were dragged from.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.DragDropSupport.RowDropAdorner">
+            <summary>Drop indicator drawn over the row area during a drag.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.DragDropSupport.RowDropCompletedEventArgs">
+            <summary>
+            Raised once a drop is completely finished: the source collections have been
+            updated and the view rebuilt.
+            <para>
+            Distinct from <c>RowDropped</c>, which fires before any relocation so a handler
+            can take over. By the time this runs the hierarchy is settled, so the nodes here
+            are the freshly built ones, not the ones that were dragged.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDropCompletedEventArgs.Nodes">
+            <summary>The moved rows, resolved against the rebuilt tree.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDropCompletedEventArgs.Items">
+            <summary>The moved records, in the order they were dragged.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDropCompletedEventArgs.ParentNode">
+            <summary>The parent the rows now sit under. Null when they became roots.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDropCompletedEventArgs.ParentItem">
+            <summary>The parent record, or null at root level.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDropCompletedEventArgs.HandledByHost">
+            <summary>True when a handler relocated the records rather than the grid.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.DragDropSupport.RowDropCompletedEventArgs.SourceUpdated">
+            <summary>True when the grid rewrote the child collections or parent keys.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Editing.BulkValueChangingEventArgs">
+            <summary>
+            Raised before a committed value is pushed to the rest of the selection.
+            <para>
+            Cancel to apply the edit to the edited cell only. Set
+            <see cref="P:TreeGrid.Wpf.Editing.BulkValueChangingEventArgs.SuppressConfirmation"/> when the handler has already asked the user,
+            or wants no prompt at all.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.BulkValueChangingEventArgs.NewValue">
+            <summary>The value being applied, already coerced by the column's editor.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.BulkValueChangingEventArgs.Nodes">
+            <summary>Rows that will receive the value. Excludes the edited row.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.BulkValueChangingEventArgs.DistinctValueCount">
+            <summary>How many distinct values the affected cells currently hold.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.BulkValueChangingEventArgs.HasMixedValues">
+            <summary>True when the affected cells do not all share one value.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.BulkValueChangingEventArgs.SuppressConfirmation">
+            <summary>Set true to skip the grid's built-in confirmation prompt.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Editing.BulkValueChangedEventArgs">
+            <summary>Raised after a bulk update, whether or not every row accepted the value.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.BulkValueChangedEventArgs.UpdatedCount">
+            <summary>Rows that accepted the value, excluding the edited row.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.BulkValueChangedEventArgs.RejectedNodes">
+            <summary>Rows whose validation refused the value; their errors are already recorded.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Editing.EditTrigger.None">
+            <summary>Editing must be started in code.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Editing.EditTrigger.OnKeyPress">
+            <summary>A printable keypress on the current cell opens the editor.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Editing.EditController">
+            <summary>
+            Owns the edit session: which cell is open, what the value was, and how a commit
+            or rollback is performed.
+            <para>
+            Row-level transactions come from <see cref="T:System.ComponentModel.IEditableObject"/>. The row's
+            BeginEdit is called when editing first enters a row and EndEdit when focus
+            leaves it, so a multi-cell edit rolls back as a unit on Escape.
+            </para>
+            </summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.Editing.EditController.ErrorsChanged">
+            <summary>Raised when a cell's error state changes so the view can repaint.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Editing.EditController.BeginEdit(TreeGrid.Wpf.Data.TreeNode,TreeGrid.Wpf.Columns.TreeGridColumn)">
+            <summary>Opens an editor. Returns the element to host, or null if refused.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Editing.EditController.EndEdit(System.Boolean)">
+            <summary>
+            Closes the editor. Returns false when a commit was rejected by validation,
+            in which case the session stays open on the offending cell.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Editing.EditController.CommitRow">
+            <summary>
+            Ends the row transaction. Returns false when row validation rejected it, in
+            which case the transaction stays open.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Editing.EditController.TryApplyValue(TreeGrid.Wpf.Data.TreeNode,TreeGrid.Wpf.Columns.TreeGridColumn,System.Object,System.String@)">
+            <summary>
+            Writes a value to one cell outside an edit session, running the same
+            coercion, CellValidating event and post-write validation as a typed edit.
+            <para>
+            Bulk updates go through here so they cannot bypass rules a keyboard edit
+            would have to satisfy. A rejected value is rolled back and recorded against
+            the cell, leaving the rest of the batch unaffected.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Editing.EditController.ValidateRow(TreeGrid.Wpf.Data.TreeNode,System.Collections.Generic.IEnumerable{System.String})">
+            <summary>Runs row validation for a node without ending its transaction.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Editing.RowsDeletingEventArgs">
+            <summary>
+            Raised before selected rows are removed. Cancel to refuse the delete outright.
+            <para>
+            Set <see cref="P:TreeGrid.Wpf.Editing.RowsDeletingEventArgs.HandledByHost"/> when you have removed the records yourself; the
+            grid then reloads from the source rather than attempting removal itself, which
+            is what a view model owning its own collections normally wants.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.RowsDeletingEventArgs.Nodes">
+            <summary>Top-level nodes being removed. Descendants are implied, not listed.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.RowsDeletingEventArgs.TotalAffected">
+            <summary>Records removed once descendants are counted.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.RowsDeletingEventArgs.HandledByHost">
+            <summary>True when the host removed the data itself.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.RowsDeletingEventArgs.SuppressConfirmation">
+            <summary>Set true to skip the grid's confirmation prompt.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Editing.RowsDeletedEventArgs.RemovedCount">
+            <summary>Rows the grid actually removed from the source collections.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Export.ExportRowScope.VisibleRows">
+            <summary>Every row currently in the flat view, honouring filters.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Export.ExportRowScope.AllRows">
+            <summary>Every node, including those hidden by collapse or filter.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Export.HierarchyExportStyle.Indent">
+            <summary>Prefix the first column with indent characters.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Export.HierarchyExportStyle.LevelColumn">
+            <summary>Emit the level as its own leading column.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Export.HierarchyExportStyle.Outline">
+            <summary>Group rows using the format's native outline, where supported.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Export.GridExportOptions.ApplyDisplayFormat">
+            <summary>Apply each column's DisplayFormat rather than exporting raw values.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Export.GridExportOptions.IndentString">
+            <summary>Characters used per level when HierarchyStyle is Indent.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Export.GridExportOptions.RowFilter">
+            <summary>Return false to omit a row entirely.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Export.ExportRow">
+            <summary>One row flattened for export, carrying its depth.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Export.ExportRow.Values">
+            <summary>Raw values, for formats that carry types.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Export.ExportRow.Texts">
+            <summary>Formatted text, for formats that do not.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Export.ExportDataBuilder">
+            <summary>
+            Turns a grid's data into flat export rows. Shared by every exporter so the row
+            scope, filter and hierarchy rules behave identically across formats.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Export.CsvExporter">
+            <summary>CSV export. No third-party dependency, so it lives in the core library.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Filtering.FilterController">
+            <summary>
+            Evaluates column filters across the node tree and marks nodes as filtered out.
+            The flat view already skips <see cref="P:TreeGrid.Wpf.Data.TreeNode.IsFilteredOut"/> nodes, so a
+            filter pass is a mark phase followed by one rebuild.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterController.FilterPredicate">
+            <summary>Custom row-level filter, applied on top of the column filters.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterController.Apply(System.Collections.Generic.IReadOnlyList{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Marks the whole hierarchy. Returns the number of nodes left visible, which
+            the grid uses to decide whether to show an empty-results message.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterController.ApplyToSubtree(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>Re-marks a single subtree, used after load-on-demand children arrive.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterController.Walk(TreeGrid.Wpf.Data.TreeNode,System.Boolean,System.Int32@)">
+            <summary>
+            Depth-first mark. Returns whether this node or any descendant matched, which
+            is what lets an ancestor decide to keep itself as context.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterController.Matches(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>Column filters combine with AND; the row predicate must also pass.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterController.GetDistinctValues(System.Collections.Generic.IReadOnlyList{TreeGrid.Wpf.Data.TreeNode},System.String,System.Func{System.Object,System.String},System.Int32)">
+            <summary>
+            Gathers the distinct values of a column for the checkbox list, walking the
+            entire node tree rather than the flat view so collapsed rows still appear.
+            <para>
+            Note this is unavailable for genuinely unbounded load-on-demand sources: the
+            grid can only offer what has been materialised, which is why the popup
+            falls back to condition-only filtering in unbound mode.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterController.BuildFromSelection(System.String,System.Collections.Generic.IEnumerable{TreeGrid.Wpf.Filtering.FilterElement})">
+            <summary>Turns a checkbox-list selection into an OR chain of equality predicates.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Filtering.FilterPopupControl">
+            <summary>
+            The filter UI. Offers two routes to the same result: a checkbox list of
+            distinct values, and a pair of chained conditions. The list is disabled when
+            distinct values cannot be enumerated, which is the case for unbounded
+            load-on-demand sources.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPopupControl.CanUseValueList">
+            <summary>False when distinct values could not be enumerated.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPopupControl.ListBackground">
+            <summary>Background of the value checklist.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPopupControl.AccentBrush">
+            <summary>Used for the column-name heading and other emphasis.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPopupControl.InputBackground">
+            <summary>Background of the search box, condition boxes and drop-downs.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPopupControl.InputForeground">
+            <summary>Text colour for every editor in the popup, Conditions included.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPopupControl.AllowResize">
+            <summary>Shows a grip in the bottom-right corner for dragging the popup larger.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.Filtering.FilterPopupControl.Resized">
+            <summary>Raised after a resize drag, so the host can remember the new size.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPopupControl.Elements">
+            <summary>Every distinct value in the column.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPopupControl.VisibleElements">
+            <summary>The subset matching the search box, which is what the list binds to.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPopupControl.UseStronglyTypedConditions">
+            <summary>True when the column uses strongly-typed comparison for conditions.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterPopupControl.Initialize(System.String,System.String,System.Collections.Generic.IEnumerable{TreeGrid.Wpf.Filtering.FilterElement},TreeGrid.Wpf.Filtering.ColumnFilter,System.Boolean)">
+            <summary>Loads the popup for a column. Existing predicates pre-select the list.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterPopupControl.ExtractSelectedTexts(TreeGrid.Wpf.Filtering.ColumnFilter)">
+            <summary>
+            A filter built from the checkbox list is an OR chain of equality predicates,
+            so it can be read back to restore the tick marks. Condition filters cannot,
+            which is why they populate the advanced section instead.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterPopupControl.BuildFilter">
+            <summary>
+            Conditions win when present, since typing one is a deliberate act; otherwise
+            the checkbox list is used. An all-selected list means no filter at all.
+            </summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Filtering.FilterBehavior.StringTyped">
+            <summary>Compare using the displayed text. Right for checkbox lists.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Filtering.FilterBehavior.StronglyTyped">
+            <summary>Coerce the filter value to the column's type before comparing.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Filtering.FilterNodeMode">
+            <summary>
+            Determines how much of the hierarchy survives a filter. A tree grid cannot
+            simply drop non-matching rows: a match five levels deep is meaningless without
+            the ancestors that give it context.
+            </summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Filtering.FilterNodeMode.MatchingNodesOnly">
+            <summary>Only matching nodes remain, flattened against their surviving ancestors.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Filtering.FilterNodeMode.MatchingAndParentNodes">
+            <summary>Matching nodes plus every ancestor. The usual choice.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Filtering.FilterNodeMode.MatchingAndChildNodes">
+            <summary>Matching nodes plus their whole subtree.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Filtering.FilterNodeMode.MatchingParentAndChildNodes">
+            <summary>Matching nodes plus ancestors and descendants.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Filtering.FilterPredicate.PredicateType">
+            <summary>How this predicate joins the one before it.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterPredicate.Evaluate(System.Object)">
+            <summary>Evaluates one cell value against this predicate.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.FilterPredicate.CoerceToCellType(System.Object,System.Object)">
+            <summary>
+            Converts the typed filter value into the cell's runtime type. Users type
+            strings; the column holds decimals or dates.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Filtering.ColumnFilter">
+            <summary>All predicates applied to a single column.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Filtering.ColumnFilter.Evaluate(System.Object)">
+            <summary>
+            Combines predicates left to right. The first predicate's
+            <see cref="P:TreeGrid.Wpf.Filtering.FilterPredicate.PredicateType"/> is ignored, since there is
+            nothing to its left.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Filtering.FilterElement">
+            <summary>One entry in the checkbox list of the filter popup.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Grouping.GroupColumnDescription">
+            <summary>One level of grouping.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupColumnDescription.SortDirection">
+            <summary>Order of the group headers themselves, not of the records inside them.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupColumnDescription.HeaderText">
+            <summary>Header text for the chip and the group captions. Set by the grid.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Grouping.GroupInfo">
+            <summary>Payload carried by a group header node.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupInfo.DisplayText">
+            <summary>Formatted key, e.g. "Manager".</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupInfo.GroupLevel">
+            <summary>Zero-based grouping depth.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupInfo.ItemCount">
+            <summary>Records beneath this group, counted recursively.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupCaptionEventArgs.Caption">
+            <summary>Override to customise the group header text.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Grouping.GroupController">
+            <summary>
+            Builds a tree of group header nodes from a flat set of records.
+            <para>
+            Grouping replaces the source hierarchy rather than nesting inside it: a row can
+            sit under its parent or under a group, not both. Records are therefore
+            represented by fresh leaf nodes, and the original tree is restored untouched
+            when grouping is cleared.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupController.NullGroupCaption">
+            <summary>Shown when a grouped value is null or empty.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.Grouping.GroupController.QueryGroupCaption">
+            <summary>Raised per group header so the caption can be customised.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Grouping.GroupController.Build(System.Collections.Generic.IReadOnlyList{TreeGrid.Wpf.Data.TreeNode},System.Func{System.String,TreeGrid.Wpf.Columns.TreeGridColumn},System.Comparison{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Produces the grouped root nodes. <paramref name="records"/> are the original
+            nodes; the leaves returned are new nodes wrapping the same data items.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Grouping.GroupController.CollectRecords(System.Collections.Generic.IReadOnlyList{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>Flattens a node tree into its records, ignoring group headers.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Grouping.GroupingAction.Grouped">
+            <summary>A column was added to the grouping.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Grouping.GroupingAction.Ungrouped">
+            <summary>A column was removed from the grouping.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Grouping.GroupingAction.Reordered">
+            <summary>An existing level moved, changing precedence.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Grouping.GroupingAction.SortDirectionChanged">
+            <summary>A level's ascending/descending order was flipped.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Grouping.GroupingAction.Cleared">
+            <summary>All grouping was removed at once.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Grouping.GroupingChangingEventArgs">
+            <summary>
+            Raised before grouping changes. Cancel to refuse the change; nothing is applied
+            and the panel is left untouched.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupingChangingEventArgs.ColumnName">
+            <summary>Mapping name of the affected column. Null for <see cref="F:TreeGrid.Wpf.Grouping.GroupingAction.Cleared"/>.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupingChangingEventArgs.Column">
+            <summary>The affected column, when it is still present on the grid.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupingChangingEventArgs.OldIndex">
+            <summary>Previous grouping position, or -1 when the column was not grouped.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupingChangingEventArgs.NewIndex">
+            <summary>Requested grouping position, or -1 when it is being removed.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Grouping.GroupingChangedEventArgs">
+            <summary>Raised after grouping has been applied and the view rebuilt.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupingChangedEventArgs.GroupLevelCount">
+            <summary>Number of grouping levels now active.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Grouping.GroupDragOverEventArgs">
+            <summary>
+            Raised while a column header is dragged over the group panel, once per move.
+            Set <see cref="P:TreeGrid.Wpf.Grouping.GroupDragOverEventArgs.IsAllowed"/> false to refuse the drop at this position.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Grouping.GroupDragOverEventArgs.TargetIndex">
+            <summary>Grouping position the column would take if dropped now.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Grouping.GroupChipDragEventArgs">
+            <summary>Raised when a chip drag begins in the group panel.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Headers.StackedColumn">
+            <summary>
+            One spanning header cell. <see cref="P:TreeGrid.Wpf.Headers.StackedColumn.ChildColumns"/> is a comma-separated list
+            of mapping names, matching the convention most grids use in XAML.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Headers.StackedColumn.ChildColumns">
+            <summary>Comma-separated mapping names, e.g. "FirstName,LastName".</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Headers.StackedHeaderSpan">
+            <summary>Resolved geometry for one stacked header cell in a given layout pass.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Headers.StackedHeaderSpan.IsFrozen">
+            <summary>True when every column in the span is inside the left frozen band.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Localization.TreeGridLocalization">
+            <summary>
+            String provider for everything the control shows to a user.
+            <para>
+            Built-in English defaults mean the grid works with no setup. Assign
+            <see cref="P:TreeGrid.Wpf.Localization.TreeGridLocalization.ResourceManager"/> to point at satellite assemblies; any key the
+            resource manager does not carry falls back to the default rather than
+            rendering an empty label.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Localization.TreeGridLocalization.ResourceManager">
+            <summary>Optional satellite resource source. Keys match those in Defaults.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Localization.TreeGridLocalization.Culture">
+            <summary>Culture used for lookups. Defaults to the current UI culture.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.Localization.TreeGridLocalization.LocalizationChanged">
+            <summary>Raised when the string source changes so open UI can refresh.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Localization.TreeGridLocalization.SetString(System.String,System.String)">
+            <summary>Overrides a single string without a resource assembly.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Localization.LocalizeExtension">
+            <summary>
+            XAML helper: <c>Content="{loc:Localize SelectAll}"</c>.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Merging.CoveredCellInfo">
+            <summary>A contiguous run of rows sharing one merged cell in a single column.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Merging.QueryCoveredRangeEventArgs.Range">
+            <summary>Set this and Handled to define a custom merge range.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Merging.CellMergeController">
+            <summary>
+            Computes vertical merge ranges over the flattened view.
+            <para>
+            The default rule merges adjacent rows that share both the same parent and the
+            same cell value. Restricting to siblings matters: two unrelated rows that
+            happen to hold "Manager" should not be welded together just because they landed
+            next to each other after a sort.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Merging.CellMergeController.MergeOnlyWithinSiblings">
+            <summary>When false, merging ignores the parent check and merges by value alone.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Merging.CellMergeController.Invalidate">
+            <summary>Drops cached ranges. Call after any sort, filter or structural change.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Merging.CellMergeController.GetRange(TreeGrid.Wpf.Data.FlatTreeView,System.Int32,System.Int32,TreeGrid.Wpf.Columns.TreeGridColumn)">
+            <summary>
+            Returns the merge range covering a cell, or an invalid range when the cell
+            stands alone.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Merging.CellMergeController.Resolve(TreeGrid.Wpf.Data.FlatTreeView,System.Int32,System.Int32,TreeGrid.Wpf.Columns.TreeGridColumn,System.Int32)">
+            <summary>
+            Resolves what a given row should render for a column.
+            <para>
+            A span can start above the viewport, in which case its owning row was never
+            realised. Rather than leave a gap, the range is clamped to the first visible
+            row, so a merged cell scrolled halfway off the top still shows its label —
+            the same behaviour a spreadsheet gives you.
+            </para>
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Merging.MergeRenderInfo">
+            <summary>How one cell participates in a merge during a layout pass.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Merging.MergeRenderInfo.IsMergeOrigin">
+            <summary>This row draws the merged cell, spanning <see cref="P:TreeGrid.Wpf.Merging.MergeRenderInfo.RowSpan"/> rows.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Merging.MergeRenderInfo.IsCovered">
+            <summary>Another row draws this cell; render nothing here.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Selection.CheckBoxCascadeMode.None">
+            <summary>Each node's checkbox is independent.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Selection.CheckBoxCascadeMode.SynchronizeWithParentAndChildren">
+            <summary>Checking a node checks its subtree and rolls the state up to ancestors.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Selection.CheckBoxCascadeMode.SynchronizeChildrenOnly">
+            <summary>Checking a node checks its subtree, but ancestors are left alone.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Selection.CheckStateController">
+            <summary>
+            Maintains tri-state checkbox state across the hierarchy.
+            <para>
+            The awkward case is load-on-demand: an ancestor can be checked before its
+            children exist. Rather than pretend the subtree is known, a checked-but-
+            unpopulated node records its state and children inherit it when they arrive
+            (see <see cref="M:TreeGrid.Wpf.Selection.CheckStateController.ApplyInheritedState(TreeGrid.Wpf.Data.TreeNode)"/>).
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Selection.CheckStateController.Toggle(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>Cycles a node between checked and unchecked. Indeterminate becomes checked.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Selection.CheckStateController.ResolveParentState(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>
+            A parent is checked when every child is checked, unchecked when none are,
+            indeterminate otherwise. Unpopulated parents keep their own state, since
+            nothing is known about the subtree yet.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Selection.CheckStateController.ApplyInheritedState(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>
+            Called after load-on-demand supplies children. A fully-checked parent hands
+            its state down to the newly arrived nodes so the tree stays consistent.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Selection.CheckStateController.Restore(System.Func{System.Object,TreeGrid.Wpf.Data.TreeNode})">
+            <summary>Re-attaches check state after the node tree is rebuilt.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Selection.GridSelectionMode.Single">
+            <summary>One item at a time; modifiers are ignored.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Selection.GridSelectionMode.Multiple">
+            <summary>Click toggles; no anchor, no range.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Selection.GridSelectionMode.Extended">
+            <summary>Explorer semantics: plain click replaces, Ctrl toggles, Shift extends from anchor.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Selection.GridIndex">
+            <summary>
+            A row/column coordinate in the flattened view. Row indices are flat-view
+            indices, so they shift when nodes expand or collapse; anything that needs to
+            survive a structural change should hold the <see cref="T:TreeGrid.Wpf.Data.TreeNode"/> instead.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Selection.SelectionController">
+            <summary>
+            Owns all selection state. Selection is tracked against <see cref="T:TreeGrid.Wpf.Data.TreeNode"/>
+            rather than flat-view row indices, so collapsing an ancestor or re-sorting does
+            not silently drop the user's selection.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Selection.SelectionController.CurrentCell">
+            <summary>Current cell in flat-view coordinates, recomputed on demand.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Selection.SelectionController.TracksItem(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>
+            Group headers are selectable so they can be highlighted and navigated, but
+            they carry no data item. Adding their null Item to SelectedItems would put
+            nulls in a collection the host enumerates, so they are tracked as nodes only.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Selection.SelectionController.HandleKey(System.Windows.Input.Key,System.Windows.Input.ModifierKeys)">
+            <summary>Returns true when the key was consumed.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Selection.SelectionController.PageMove(System.Int32,System.Windows.Input.ModifierKeys)">
+            <summary>Page navigation needs the viewport size, so the owner supplies the row delta.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Selection.SelectionController.Restore(System.Func{System.Object,TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Re-attaches selection after the node tree is rebuilt. Nodes are new objects
+            after a reload, so we remap by data item.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Sorting.SortColumnDescription">
+            <summary>Describes one level of a multi-column sort.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Sorting.SortColumnDescription.ColumnName">
+            <summary>Mapping name of the column being sorted.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Sorting.SortComparer">
+            <summary>
+            Supplies custom ordering for a column. Registered per mapping name on the grid;
+            values handed to <see cref="M:System.Collections.IComparer.Compare(System.Object,System.Object)"/> are the raw
+            cell values, not the data items.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Sorting.SortController">
+            <summary>
+            Sorts the node hierarchy level by level.
+            <para>
+            A tree grid cannot sort the flattened list — doing so would tear children away
+            from their parents. Instead each sibling group is sorted independently, which
+            preserves the hierarchy while still giving a globally consistent ordering.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Sorting.SortController.ColumnResolver">
+            <summary>
+            Resolves a column by mapping name so the sort can honour SortMemberPath.
+            Set by the grid; without it the mapping name is used directly.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Sorting.SortController.BuildComparison">
+            <summary>Builds the comparison used for every sibling group, or null when unsorted.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Sorting.SortController.CompareValues(System.Object,System.Object)">
+            <summary>
+            Nulls sort first ascending, which matches Excel and most grids. Values that
+            do not implement IComparable are compared by their string form rather than
+            throwing, since a single odd cell should not break the whole sort.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Sorting.SortController.ToggleColumn(System.String,System.Boolean,System.Boolean)">
+            <summary>
+            Cycles a column through ascending, descending, unsorted. Returns the new
+            direction, or null when the column dropped out of the sort.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Sorting.SortController.StableSort(System.Collections.Generic.List{TreeGrid.Wpf.Data.TreeNode},System.Comparison{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Stable in-place sort. <see cref="M:System.Collections.Generic.List`1.Sort"/> is unstable, which would
+            make equal rows shuffle on every re-sort; the source-index tiebreak in
+            <see cref="M:TreeGrid.Wpf.Sorting.SortController.BuildComparison"/> removes that, and this keeps the guarantee
+            even for caller-supplied comparisons.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Styling.TreeGridVisualStyle">
+            <summary>
+            The resolved appearance of one grid, pushed down to rows and cells on each
+            layout pass.
+            <para>
+            This exists so per-instance styling does not have to be threaded through the
+            view layer as twenty separate fields. The control resolves every value once -
+            taking the explicit property if set, otherwise the current theme resource - so
+            downstream code never has to ask "is this null, and what do I fall back to?".
+            </para>
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Styling.QueryRowStyleEventArgs">
+            <summary>
+            Raised per realised row so the host can colour rows conditionally. Leaving a
+            property null keeps the grid's own value, so a handler only sets what it wants
+            to override.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Styling.QueryCellStyleEventArgs">
+            <summary>Per-cell equivalent of <see cref="T:TreeGrid.Wpf.Styling.QueryRowStyleEventArgs"/>.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.TreeGridControl._cellContentPointerHandled">
+            <summary>
+            Set when a click on a control inside a cell already selected its row in the preview
+            pass, so the bubbling pass - when the control lets it through - does not select again
+            or take focus away from the control.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.SelectedMemberPath">
+            <summary>
+            Boolean property on the record that mirrors row selection. Selecting a row
+            sets it true and deselecting sets it false, and the value is read back when
+            the source loads so saved state is honoured.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.CheckedMemberPath">
+            <summary>Same idea for the hierarchy checkbox. Accepts bool or bool?.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.ObserveMemberPathChanges">
+            <summary>
+            Makes the mapping two-way live: changes the host makes to the mapped
+            property are reflected in the grid.
+            <para>
+            Off by default because it subscribes to PropertyChanged on every record,
+            which is a real cost on a large source. Leave it off and call
+            <see cref="M:TreeGrid.Wpf.TreeGridControl.RefreshSelectionFromSource"/> after a bulk change instead.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowCheckBoxSelection">
+            <summary>Shows a tri-state checkbox in the expander column.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowHidingColumns">
+            <summary>
+            Offers "Hide this column" in the default header context menu. Set false where the
+            column set is managed elsewhere, such as a customize-columns dialog. Columns can
+            still be hidden in code through <see cref="P:TreeGrid.Wpf.Columns.TreeGridColumn.IsHidden"/>.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.ShowDragPreview">
+            <summary>
+            Shows a translucent copy of the dragged header or group chip following the
+            pointer. Set false for the plain drop-line behaviour.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.SelectedItems">
+            <summary>Live view of the selected data items.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.CheckedItems">
+            <summary>Live view of the checked data items.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowMultiSort">
+            <summary>Ctrl-click a header to add it to the sort rather than replace it.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FilterNodeMode">
+            <summary>How much of the hierarchy survives around a match.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.ExpandNodesOnFiltering">
+            <summary>Auto-expands surviving nodes so matches are visible immediately.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.SortColumnDescriptions">
+            <summary>The active multi-column sort. Mutate this to sort programmatically.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.SortComparers">
+            <summary>Custom comparers registered per mapping name.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FilterPredicate">
+            <summary>Row-level filter applied on top of the column filters.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowEditing">
+            <summary>Master switch for editing. Individual columns can still opt out.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowDeleteRows">
+            <summary>
+            Removes the selected rows when Delete is pressed. Off by default, so the
+            key keeps its existing meaning until you opt in.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.ConfirmRowDelete">
+            <summary>Prompts before deleting. Ignored when a handler suppresses it.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowBulkValueChange">
+            <summary>
+            Applies a committed value to every selected row in the same column.
+            Off by default; when off, nothing in the edit path changes at all.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.BulkValueChangeModifiers">
+            <summary>
+            Keys that must be held as the edit commits. Defaults to Ctrl, so Ctrl+Enter
+            fills the selection. Set to <see cref="F:System.Windows.Input.ModifierKeys.None"/> to apply to the
+            selection on every commit without a modifier.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.ShowBulkValueChangeConfirmation">
+            <summary>Prompts when the affected cells hold more than one distinct value.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowMergeCells">
+            <summary>
+            Merges vertically adjacent cells holding the same value.
+            <para>
+            EXPERIMENTAL and off by default. The implementation is complete and the
+            rendering issues are fixed, but it is not exercised by the demo and has had
+            no real use, so treat it as unverified. Setting this true is the only thing
+            needed to switch it back on.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.UpdateSourceOnRowDrop">
+            <summary>
+            Keeps the data in step with the visual hierarchy after a drop: moves the
+            record between child collections when <see cref="P:TreeGrid.Wpf.TreeGridControl.ChildPropertyName"/> is
+            set, or rewrites its parent key in self-relational mode.
+            <para>
+            A handler that sets <c>HandledByHost</c> on <c>RowDropped</c> still takes
+            precedence. Set false to go back to the grid only rearranging its nodes.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.MergedCellBackground">
+            <summary>
+            Painted behind merged cells. Defaults to the grid's own Background, which is
+            what makes a span read as one solid cell rather than a translucent overlay
+            on the striped rows beneath it.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.StackedHeaderRows">
+            <summary>Spanning header rows drawn above the column headers.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowExcelPaste">
+            <summary>
+            Expands a pasted block across rows and columns, filling left to right then
+            downward from the current cell - the shape Excel puts on the clipboard.
+            When false, a paste writes only the current cell. Requires
+            <see cref="P:TreeGrid.Wpf.TreeGridControl.AllowPaste"/>.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.ShowDefaultContextMenus">
+            <summary>Builds stock menus for regions with no menu supplied.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.HeaderContextMenuItems">
+            <summary>
+            Extra items appended to the stock header menu, after a separator.
+            The built-in entries are untouched. Ignored when
+            <see cref="P:TreeGrid.Wpf.TreeGridControl.HeaderContextMenu"/> replaces the menu outright.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.RecordContextMenuItems">
+            <summary>Extra items appended to the stock record menu.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.ExpanderContextMenuItems">
+            <summary>Extra items appended to the stock expander menu.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.Container">
+            <summary>The virtualizing panel. Exposed for diagnostics and benchmarking.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.SortIconBrush">
+            <summary>
+            Sort arrow colour. Unset, it follows <see cref="P:TreeGrid.Wpf.TreeGridControl.HeaderForeground"/> when
+            that is set, otherwise the theme - so a custom header colour can never
+            leave the glyph invisible.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FilterIconBrush">
+            <summary>Filter funnel colour when no filter is applied.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FilterIconActiveBrush">
+            <summary>Filter funnel colour once the column is filtered.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FilterPopupAccentBrush">
+            <summary>Colour of the column-name heading inside the popup.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FilterListBackground">
+            <summary>Background of the value checklist inside the popup.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FilterInputBackground">
+            <summary>Background of the popup's search box, condition boxes and drop-downs.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FilterInputForeground">
+            <summary>
+            Text colour for every editor in the popup, including the Conditions
+            section. Separate from <see cref="P:TreeGrid.Wpf.TreeGridControl.FilterPopupForeground"/> because
+            WPF editors carry a Foreground from their own default style, which a
+            popup-level inherited value cannot override.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowFilterPopupResize">
+            <summary>
+            Lets the user drag the filter popup larger from its bottom-right corner.
+            The new size is written back to <see cref="P:TreeGrid.Wpf.TreeGridControl.FilterPopupWidth"/> and
+            <see cref="P:TreeGrid.Wpf.TreeGridControl.FilterListMaxHeight"/>, so it survives reopening.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FilterPopupStyle">
+            <summary>Replaces the popup's Style outright, for a full retemplate.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.HeaderBackground">
+            <summary>Header strip background. Falls back to the current theme when unset.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.RowBackground">
+            <summary>Background for ordinary rows. Alternating rows use their own brush.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.HoverRowBackground">
+            <summary>Set this to enable row hover highlighting. Null disables it entirely.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.SelectionOverridesConditionalStyle">
+            <summary>
+            When true, a selected or hovered row shows the selection / hover colours instead of the
+            colours from <see cref="E:TreeGrid.Wpf.TreeGridControl.QueryRowStyle"/> and <see cref="E:TreeGrid.Wpf.TreeGridControl.QueryCellStyle"/>, so conditionally
+            highlighted rows still give selection and hover feedback. False (the default) lets the
+            conditional colours win.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.SelectOnCellContentInteraction">
+            <summary>
+            When true (the default), clicking a control inside a template cell - a button, text box,
+            combo box and so on - or moving keyboard focus into one selects its row and makes it the
+            current cell, before the control acts on the click. Those controls handle the mouse
+            themselves, so without this the grid never sees the click. A row that is already part
+            of the selection keeps the selection as it is, so commands acting on the selected rows
+            still see all of them.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.GridLinesVisibility">
+            <summary>None, Horizontal, Vertical or Both.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.CurrentCellBorderThickness">
+            <summary>
+            Width of the border around the current cell (default 1). The border is drawn inside
+            the cell, so a wider border takes its space from the cell content.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.ShowFooter">
+            <summary>Shows the status strip below the rows. On by default.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FooterContent">
+            <summary>Content shown on the right of the footer, e.g. aggregates.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.FooterStatusText">
+            <summary>Overrides the generated status line when set.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AllowGrouping">
+            <summary>Enables grouping. Required before headers can be dragged to the panel.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.ShowGroupDropArea">
+            <summary>Shows the panel above the headers listing the active grouping.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.HideGroupedColumns">
+            <summary>
+            Hides a column from the grid while it is grouped, since its value is already
+            shown on every group header and repeating it in a column is noise. The
+            column returns when it leaves the grouping.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.AutoExpandGroups">
+            <summary>Expand new groups on creation. Off leaves them collapsed.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.GroupColumnDescriptions">
+            <summary>The active grouping, outermost first. Mutate to group in code.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.View">
+            <summary>The flattened, currently-visible node projection.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.RequestTreeItems">
+            <summary>Raised when an unpopulated node is expanded. Set ChildItems to supply children.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.RowsDeleting">
+            <summary>Raised before selected rows are removed. Cancellable.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.RowsDeleted">
+            <summary>Raised after a delete completes.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.BulkValueChanging">
+            <summary>Raised before a value is pushed across the selection. Cancellable.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.BulkValueChanged">
+            <summary>Raised after a bulk update, with the counts.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.RowDropCompleted">
+            <summary>
+            Raised once the drop is finished and the hierarchy is settled: after the
+            child collections or parent keys have been updated and the view rebuilt.
+            </summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.PasteCompleted">
+            <summary>Raised after a paste, with the counts. Nothing is raised for a no-op.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.ColumnReordering">
+            <summary>Raised before a column is moved by a drag. Cancel to refuse.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.ColumnReordered">
+            <summary>
+            Raised after a column moves, whether by drag or by mutating
+            <see cref="P:TreeGrid.Wpf.TreeGridControl.Columns"/> directly.
+            </summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.QueryRowStyle">
+            <summary>
+            Raised for each realised row so appearance can depend on the data.
+            Leave a property null to keep the grid's own value.
+            </summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.QueryCellStyle">
+            <summary>Per-cell equivalent of <see cref="E:TreeGrid.Wpf.TreeGridControl.QueryRowStyle"/>.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.QueryGroupCaption">
+            <summary>Raised per group header so its caption can be customised.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.GroupingChanging">
+            <summary>Raised before grouping changes. Cancel to refuse the change.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.GroupingChanged">
+            <summary>Raised after grouping has been applied and the view rebuilt.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.GroupDragOver">
+            <summary>Raised per pointer move while a header is dragged over the group panel.</summary>
+        </member>
+        <member name="E:TreeGrid.Wpf.TreeGridControl.GroupChipDragStarting">
+            <summary>Raised when a chip drag starts in the group panel. Cancel to pin it.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.SyncGroupedColumnVisibility">
+            <summary>
+            Hides grouped columns and restores them when they leave the grouping.
+            <para>
+            The column's own IsHidden is remembered before it is taken over, so a column
+            the host had already hidden does not reappear when it is ungrouped.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ResolveVisualStyle">
+            <summary>
+            Builds the appearance actually used for a pass: the explicit property when
+            set, otherwise the matching theme resource. Resolving once here means rows
+            and cells never have to handle a null and guess a fallback.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.RefreshAppearance">
+            <summary>
+            Re-reads appearance and repaints. Call after changing styling properties in
+            code, or after your conditional-formatting inputs change.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ResolveNode(System.Object)">
+            <summary>
+            Maps a data item to the node currently on screen.
+            <para>
+            Grouping represents records with fresh leaf nodes, so the data source's own
+            map still points at the ungrouped tree. Anything that turns an item back
+            into a node - SelectedItem, ScrollIntoView, check state - has to go through
+            here or it will address invisible nodes.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.UpdateFooter">
+            <summary>
+            Recomputes the footer counts. Group headers are excluded from the record
+            count, so "1,204 records" means records whether or not grouping is on.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.TreeGrid#Wpf#Columns#ITreeGridColumnHost#OnColumnLayoutChanged(TreeGrid.Wpf.Columns.TreeGridColumn)">
+            <summary>
+            A column changed something that affects layout - width, visibility, sizer.
+            Hiding a column previously did nothing until an unrelated action forced a
+            refresh, because a column has no place in the visual tree to notify from.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.RefreshLayout">
+            <summary>Recomputes column geometry and repaints the header and rows.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.GetColumnIndex(TreeGrid.Wpf.Columns.TreeGridColumn)">
+            <summary>
+            Position of a column among the currently visible columns, or -1 when it is
+            hidden or does not belong to this grid.
+            <para>
+            This is the visible index, not the index in <see cref="P:TreeGrid.Wpf.TreeGridControl.Columns"/>. That is
+            deliberate: frozen counts, cell coordinates and hit-testing all work in
+            visible space, so a hidden column must not consume a position.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.GetColumnAt(System.Int32)">
+            <summary>Visible column at an index, or null when out of range.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.VisibleColumns">
+            <summary>Columns currently taking part in layout, in display order.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.FindCellOfInteractiveContent(System.Windows.DependencyObject)">
+            <summary>
+            The cell hosting <paramref name="source"/> when the source sits inside an interactive
+            control of that cell's content (a button, text box, selector, slider or hyperlink), or
+            null. Plain content such as a TextBlock is left to the normal click handling.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.SelectFromCellContent(TreeGrid.Wpf.View.TreeGridCell,System.Windows.Input.ModifierKeys)">
+            <summary>
+            Selects the row of a cell whose content control is being used and makes it the current cell,
+            without taking focus from the control.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.MoveEditToNextCell(System.Boolean)">
+            <summary>Moves the editor to the next editable cell, wrapping across rows.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.SelectNode(TreeGrid.Wpf.Data.TreeNode,System.Boolean)">
+            <summary>
+            Selects a node programmatically. Pass clearExisting: false to extend the
+            current selection, which is what a "select all siblings" style command wants.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.SelectItem(System.Object,System.Boolean)">
+            <summary>Selects by data item, resolving the node currently on screen.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.OnCellValueToggle(System.Object,System.Windows.RoutedEventArgs)">
+            <summary>Toggles a bound boolean rendered by a TreeGridCheckBoxColumn.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.AutoFitColumn(TreeGrid.Wpf.Columns.TreeGridColumn)">
+            <summary>Sizes a column to the wider of its header and its realised cells.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ScheduleAutoFitPass">
+            <summary>
+            Auto-fit needs measured content, which only exists after a measure pass, so
+            widths are applied on a follow-up tick. The guard stops a width change from
+            scheduling another pass forever.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.OnHeaderPointerDown(System.Object,System.Windows.RoutedEventArgs)">
+            <summary>
+            Takes ownership of the header gesture. Capture is held by the grid, which is
+            never recycled, so a relayout mid-drag can no longer cancel it.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.UpdateHeaderGesture(System.Windows.Input.MouseEventArgs)">
+            <summary>Returns true when the move was consumed by a header gesture.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.FinishHeaderGesture">
+            <summary>Returns true when the release was consumed by a header gesture.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ShowColumnDragPreview(TreeGrid.Wpf.Columns.TreeGridColumn)">
+            <summary>
+            Floats a copy of the dragged header cell over the grid. The adorner is on
+            the grid rather than the header host so the ghost stays visible when the
+            pointer moves up into the group panel.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ResolveHeaderX(System.Int32)">
+            <summary>Header-space X of a column, accounting for the frozen bands.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.HandleHeaderClick(TreeGrid.Wpf.Columns.TreeGridColumn)">
+            <summary>A press with no drag sorts the column.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.SortColumn(System.String,System.ComponentModel.ListSortDirection,System.Boolean)">
+            <summary>Sorts a column programmatically, replacing any existing sort.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ApplySorting">
+            <summary>Re-sorts the hierarchy and repaints. Safe to call when unsorted.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ApplyFilters">
+            <summary>Re-evaluates every filter and rebuilds the flat view.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ExpandSurvivingNodes">
+            <summary>
+            After filtering, a match buried under collapsed ancestors would be invisible,
+            which reads as "the filter found nothing". Open every node that survived.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ResolveFilterPopupOffset(TreeGrid.Wpf.View.TreeGridHeaderCell)">
+            <summary>
+            Aligns the popup's right edge with the column's right edge, then pulls it
+            back if that would push it off the left of the grid - a narrow first column
+            would otherwise open partly outside the control.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ApplyFilterPopupStyle">
+            <summary>
+            Pushes the resolved appearance onto the popup. Applied per opening rather
+            than once, so a theme swap or a property change between openings is picked
+            up without recreating the popup.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.BeginEdit(TreeGrid.Wpf.Data.TreeNode,TreeGrid.Wpf.Columns.TreeGridColumn)">
+            <summary>Opens the editor on a cell. Returns false when editing was refused.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.EndEdit(System.Boolean)">
+            <summary>Commits the open editor. Returns false when validation rejected it.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.IsBulkModifierHeld">
+            <summary>
+            Rows that should receive the committed value, or null when bulk update does
+            not apply. Returning null keeps the normal edit path untouched.
+            </summary>
+            <summary>True when a commit right now would fan the value across the selection.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ApplyBulkValue(TreeGrid.Wpf.Columns.TreeGridColumn,System.Object,System.Collections.Generic.List{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>Pushes a value across the selection, validating each row independently.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.CountDistinctValues(TreeGrid.Wpf.Columns.TreeGridColumn,System.Collections.Generic.List{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Distinct values currently held by the affected cells.
+            <para>
+            The value being applied is deliberately excluded: the prompt asks whether to
+            overwrite cells that disagree with each other, so a selection that is already
+            uniform is replaced without interruption even when the new value differs.
+            </para>
+            </summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.TreeGridControl.NullKey">
+            <summary>Stands in for null so it can live in a HashSet alongside real values.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.DeleteSelectedRows">
+            <summary>
+            Removes the selected rows. Returns how many records the grid removed from
+            the source; zero when cancelled, refused at the prompt, or handled by the host.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ResolveDeleteTargets">
+            <summary>
+            Selected record rows, with any row that is already a descendant of another
+            selected row dropped - removing the ancestor takes the subtree with it, and
+            removing twice would throw or silently miss.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.RemoveFromSource(System.Collections.Generic.IReadOnlyList{TreeGrid.Wpf.Data.TreeNode})">
+            <summary>
+            Removes records from the collections they actually live in: a child
+            collection for a nested item, the ItemsSource for a root or for a
+            self-relational row. Collections that are not writable lists are skipped
+            and reported through the returned count.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.RefreshSelectionFromSource">
+            <summary>
+            Applies <see cref="P:TreeGrid.Wpf.TreeGridControl.SelectedMemberPath"/> from the records to the grid.
+            Call after changing the property on many records at once.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.RefreshCheckStateFromSource">
+            <summary>Applies <see cref="P:TreeGrid.Wpf.TreeGridControl.CheckedMemberPath"/> from the records to the grid.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.WriteSelectionToSource(TreeGrid.Wpf.Selection.GridSelectionChangedEventArgs)">
+            <summary>Writes selection back to the records after the grid changed it.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.WriteBoolean(System.Object,System.String,System.Nullable{System.Boolean})">
+            <summary>
+            Writes through the compiled accessor, which handles bool and bool? alike.
+            A read-only or missing property is skipped rather than throwing: the mapping
+            is a convenience, not a contract the record has to satisfy.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ValidateRow(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>Validates every mapped column of a row and paints any errors.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.TreeGridControl.CanUpdateSourceOnDrop">
+            <summary>
+            True when the grid knows how the hierarchy is expressed in the data: a child
+            collection, or a parent key. Unbound sources express it neither way.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ResolveDropParentItem(TreeGrid.Wpf.DragDropSupport.RowDropOutcome)">
+            <summary>The record the rows end up under, or null when they become roots.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.UpdateSourceForDrop(TreeGrid.Wpf.DragDropSupport.RowDropOutcome)">
+            <summary>
+            Moves the records so the data matches what the user sees. Hierarchical
+            sources move the item between child collections; self-relational sources get
+            their parent key rewritten.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.GetChildCollection(System.Object)">
+            <summary>Child collection for a record, or the root collection for null.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ReloadPreservingExpansion">
+            <summary>
+            Rebuilds from the source without collapsing the tree. A reload is the only
+            way to guarantee the nodes match the rewritten data, but expansion is view
+            state and would otherwise be thrown away.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ShowContextMenuAt(System.Windows.Point)">
+            <summary>
+            Opens the appropriate menu for a point in grid coordinates.
+            <para>
+            This deliberately does not use ContextMenuOpening. WPF only raises that
+            event when the element already has a non-null ContextMenu, so building the
+            menu inside the handler meant every right-click displayed the menu built
+            for the previous one - which is why "hide column" always hit whichever
+            column had been clicked first.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ResolveRegion(System.Windows.Point,TreeGrid.Wpf.Data.TreeNode@,TreeGrid.Wpf.Columns.TreeGridColumn@)">
+            <summary>Resolves which part of the grid a point falls in.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.WritePastedCell(TreeGrid.Wpf.Data.TreeNode,TreeGrid.Wpf.Columns.TreeGridColumn,System.String)">
+            <summary>
+            Pasted values go through the same coercion and validation as typed edits, so
+            a bad paste reports errors instead of corrupting the model.
+            </summary>
+            <summary>
+            Pasted cells take the same route as typed and bulk edits: coercion, the
+            CellValidating event, then post-write validation with rollback. A cell the
+            model refuses is counted as rejected and leaves the rest of the block intact.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.Export(TreeGrid.Wpf.Export.IGridExporter,System.IO.Stream,TreeGrid.Wpf.Export.GridExportOptions)">
+            <summary>Exports through any IGridExporter. Excel and PDF live in TreeGrid.Wpf.Export.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.GroupByColumn(System.String,System.Int32,System.ComponentModel.ListSortDirection)">
+            <summary>Adds a grouping level, or moves an existing one to <paramref name="index"/>.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.MoveGroup(System.Int32,System.Int32)">
+            <summary>Moves a grouping level, changing precedence.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.ApplyGrouping">
+            <summary>
+            Rebuilds the view for the current grouping.
+            <para>
+            The ungrouped roots are cached rather than regenerated, so clearing grouping
+            restores the original tree - including expansion state - instead of forcing
+            a reload from the source.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.RequestGroupingChange(TreeGrid.Wpf.Grouping.GroupingAction,System.String,System.Int32,System.Int32)">
+            <summary>Runs the cancellable pre-change event and records detail for the post-change one.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.TreeGridControl.IsOverGroupArea(System.Windows.Point,System.Windows.Point@)">
+            <summary>True when a point in grid coordinates is over the group panel.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Validation.GridValidationMode.Cell">
+            <summary>Validate the edited cell when the edit commits.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Validation.GridValidationMode.Row">
+            <summary>Validate every column of the row when the row loses focus.</summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.Validation.GridValidationMode.CellAndRow">
+            <summary>Both.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Validation.CellValidatingEventArgs.ErrorMessage">
+            <summary>Set alongside Cancel to explain the rejection.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.Validation.RowValidatingEventArgs.ErrorMessages">
+            <summary>Per-column messages, keyed by mapping name.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.Validation.CellValidator">
+            <summary>
+            Collects errors from every validation source the data item might implement.
+            <para>
+            The sources disagree about timing: DataAnnotations validate a candidate value
+            before it is written, while IDataErrorInfo and INotifyDataErrorInfo can only
+            report on a value already assigned. The grid therefore runs annotations first
+            and only consults the interfaces after a successful write, rolling back if
+            they object.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Validation.CellValidator.ValidateCandidate(System.Object,System.String,System.Object)">
+            <summary>Validates a candidate value without assigning it.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Validation.CellValidator.ValidateAssigned(System.Object,System.String)">
+            <summary>Reads errors reported by the item for a property already assigned.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Validation.CellValidator.ValidateRow(System.Object,System.Collections.Generic.IEnumerable{System.String})">
+            <summary>Validates every mapped column of a row.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.Validation.CellValidator.TryCoerce(System.Object,System.String,System.Object,System.Object@,System.String@)">
+            <summary>
+            Converts an edited value to the property's type. Editors hand back strings;
+            the property may want a decimal, an enum or a nullable date.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.ColumnLayout">
+            <summary>
+            Single source of truth for horizontal geometry. The header row, every record
+            row and the scroll extent all read from the same instance, which is what keeps
+            frozen columns and resizing from drifting out of alignment.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.ColumnLayout.FrozenColumnCount">
+            <summary>Number of leading columns pinned to the left edge.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.ColumnLayout.FooterColumnCount">
+            <summary>Number of trailing columns pinned to the right edge.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.ColumnLayout.ScrollableWidth">
+            <summary>Width of the horizontally scrollable middle band.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.ColumnLayout.AutoFitWidths">
+            <summary>
+            Measured content widths, keyed by column. Populated during the row measure
+            pass so auto-fit does not need a second full walk of the data.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.ColumnLayout.GetVisibleScrollableRange(System.Double,System.Double)">
+            <summary>
+            Indices of the scrollable columns intersecting the viewport. Frozen and
+            footer columns are always realised and are excluded from this range.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.ColumnLayout.ColumnIndexFromX(System.Double,System.Double,System.Double)">
+            <summary>
+            Maps a horizontal position in row coordinates to a column index, accounting
+            for the frozen bands. Returns -1 past the last column.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.ColumnLayout.ApplyAutoFitWidths">
+            <summary>
+            Pushes measured content widths onto the columns that asked for auto-fit.
+            Returns true when something actually moved, which is the signal for the
+            owner to run one more layout pass.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.ColumnLayout.ResetAutoFitWidths">
+            <summary>Discards measured widths so the next pass re-measures from scratch.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.ColumnReorderAdorner">
+            <summary>
+            Draws the insertion line while a header is being dragged. Lives on the header
+            host so it is clipped to the header band rather than floating over the rows.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.ColumnReorderAdorner.IndicatorX">
+            <summary>Horizontal position of the insertion line, in adorned-element coordinates.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.DragPreviewAdorner">
+            <summary>
+            Draws a translucent copy of whatever is being dragged, following the pointer,
+            plus an optional insertion line.
+            <para>
+            The ghost is a <see cref="T:System.Windows.Media.VisualBrush"/> of the live element rather than a
+            rendered bitmap, so it costs nothing to build and always matches the current
+            theme. It is not hit-test visible, so it cannot swallow the drag it is
+            illustrating.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.DragPreviewAdorner.GrabOffset">
+            <summary>Pointer offset inside the source, so the ghost does not jump on grab.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.DragPreviewAdorner.UpdatePosition(System.Windows.Point)">
+            <summary>Moves the ghost. Point is in the adorned element's coordinates.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.DragPreviewAdorner.SetInsertion(System.Double,System.Double)">
+            <summary>Shows a vertical drop line. Pass NaN to hide it.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.FreezableExtensions">
+            <summary>
+            Freezing is an optimisation, never a requirement, and it throws when the object
+            cannot be frozen.
+            <para>
+            Two cases bite here. A <see cref="T:System.Windows.Media.VisualBrush"/> built from
+            a live element can never be frozen, because its Visual is mutable and attached
+            to a tree. And a Pen wrapping a caller-supplied brush is only freezable if that
+            brush is - a brush carrying a binding or an animation is not. Guarding on
+            <see cref="P:System.Windows.Freezable.CanFreeze"/> keeps the optimisation where it is available
+            and silently skips it where it is not.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.FreezableExtensions.FreezeIfPossible``1(``0)">
+            <summary>Freezes when allowed and returns the same instance either way.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.PixelSnapping">
+            <summary>
+            Places row and cell edges on whole device pixels.
+            <para>
+            Layout rounding rounds an element's position and its size separately, so at display
+            scaling above 100% a row placed at 37.5px with a height of 37.5px becomes 38 + 38 and
+            overlaps its neighbour by a pixel. The later sibling then paints over the last pixel of
+            the earlier one - its bottom / right grid line and the current-cell border. Snapping
+            both edges and deriving the size from them makes neighbours meet exactly.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.PixelSnapping.SnapX(System.Windows.Media.Visual,System.Double,System.Double)">
+            <summary>The span between two snapped edges: (snapped start, snapped length).</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.PixelSnapping.SnapY(System.Windows.Media.Visual,System.Double,System.Double)">
+            <inheritdoc cref="M:TreeGrid.Wpf.View.PixelSnapping.SnapX(System.Windows.Media.Visual,System.Double,System.Double)"/>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.PixelSnapping.FloorX(System.Windows.Media.Visual,System.Double)">
+            <summary>
+            A measure constraint rounded down to whole device pixels.
+            <para>
+            Layout rounding rounds a desired size up, and an element whose size is larger than
+            the slot it is arranged into is clipped to that slot - losing its last pixel, where
+            the bottom / right border is drawn. A snapped slot is never smaller than the length
+            rounded down, so measuring against it keeps the desired size within the slot.
+            </para>
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.PixelSnapping.FloorY(System.Windows.Media.Visual,System.Double)">
+            <inheritdoc cref="M:TreeGrid.Wpf.View.PixelSnapping.FloorX(System.Windows.Media.Visual,System.Double)"/>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.StackedHeaderRowControl">
+            <summary>
+            Renders one stacked header row. Spans are resolved against the live column
+            layout on every pass, so a stacked header follows its children when columns are
+            resized or reordered.
+            <para>
+            A span whose children are no longer adjacent is drawn across the full range it
+            covers, which is the least surprising outcome — the alternative is silently
+            dropping the header.
+            </para>
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.TreeGridCell">
+            <summary>
+            A single record cell. Instances are pooled and re-targeted rather than
+            recreated, so everything mutable lives in dependency properties that can be
+            reassigned cheaply.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridCell.IsCellSelected">
+            <summary>True when the owning row is selected, or the cell itself in cell-selection mode.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridCell.ShowNodeCheckBox">
+            <summary>Hierarchy checkbox shown in the expander column.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridCell.ShowValueCheckBox">
+            <summary>Checkbox rendering a bound boolean (TreeGridCheckBoxColumn).</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridCell.IsEditing">
+            <summary>True while this cell hosts an open editor.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridCell.CustomDisplayElement">
+            <summary>Element supplied by template, progress and hyperlink columns.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridCell.GridLineThickness">
+            <summary>
+            The cell's right / bottom grid line. The cell draws its own bottom line (rather than
+            leaving it to the row) so a cell with an opaque background cannot paint over it.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridCell.MergeRowSpan">
+            <summary>Rows spanned by a vertical merge. One when not merged.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridCell.IsMergedCell">
+            <summary>
+            True when this cell spans several rows. A merged cell needs an opaque
+            background and its own bottom border, because it is painted over the rows
+            it covers rather than inside them.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridCell.ApplyVisualStyle(TreeGrid.Wpf.Styling.TreeGridVisualStyle)">
+            <summary>
+            Pushes the grid's resolved appearance onto this cell. Font properties are
+            inherited by the template's children, so setting them here is enough.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridCell.BeginEdit(System.Windows.FrameworkElement)">
+            <summary>Opens an editor inside this cell.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridCell.Bind(TreeGrid.Wpf.Data.TreeNode,TreeGrid.Wpf.Columns.TreeGridColumn,System.Int32,System.Double,System.Double,System.Boolean)">
+            <summary>Re-targets a pooled cell onto a different node/column pair.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridCell.RefreshState(System.Boolean,System.Boolean,System.String)">
+            <summary>
+            Cheap refresh for state that changes far more often than content, so
+            selection repaints do not have to re-read every bound property.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.TreeGridHeaderCell">
+            <summary>
+            Header cell. Owns the resize gripper and the reorder drag gesture; the grid
+            listens for the routed events rather than the cell mutating columns itself.
+            </summary>
+        </member>
+        <member name="F:TreeGrid.Wpf.View.TreeGridHeaderCell.HeaderPointerDownEvent">
+            <summary>
+            Reports that the pointer went down on this header. The grid owns the gesture
+            from here - see the note on the handler below.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridHeaderCell.HeaderTemplate">
+            <summary>Custom header content. DataContext is the column.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridHeaderCell.FilterIconActiveBrush">
+            <summary>Used once a filter is actually applied to the column.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridHeaderCell.SortNumber">
+            <summary>Position of this column in a multi-column sort, 1-based. Zero when unsorted.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridHeaderCell.FilterButtonElement">
+            <summary>The filter button, used as the popup's placement anchor.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridHeaderCell.RefreshIndicators(TreeGrid.Wpf.View.ListSortDirectionOrNone,System.Int32,System.Boolean,System.Boolean,System.Boolean)">
+            <summary>Applies sort and filter indicators without re-reading the column.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridHeaderCell.OnMouseLeftButtonDown(System.Windows.Input.MouseButtonEventArgs)">
+            <summary>
+            Reports the press and nothing more.
+            <para>
+            The gesture itself lives on the grid. Header cells are pooled and recycled,
+            and recycling removes them from the visual tree - which silently drops any
+            mouse capture they hold. A drag anchored here died the moment anything
+            triggered a relayout, and the release then fell through to the click path,
+            so dragging a column sorted it instead.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.HeaderPointerEventArgs.ScreenPoint">
+            <summary>Press position in screen coordinates, so the grid can measure the drag.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.TreeGridFooterControl">
+            <summary>
+            The status strip below the rows. Shows the record count and, when relevant, the
+            selected, checked and group counts.
+            <para>
+            Counts are pushed in by the grid rather than computed here: the record count has
+            to exclude group header rows, which only the grid can distinguish.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridFooterControl.RecordCount">
+            <summary>Data records, excluding group header rows.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridFooterControl.VisibleRowCount">
+            <summary>Rows currently in the flat view, including group headers.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridFooterControl.StatusText">
+            <summary>The composed status line. Set by the grid unless overridden.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridFooterControl.CustomContent">
+            <summary>Host content shown on the right of the footer, e.g. aggregates.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.TreeGridGroupCell">
+            <summary>
+            The caption row for a group. Spans the full viewport width rather than being
+            laid out per column, since a group header belongs to no single column.
+            </summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.GroupDropAreaControl">
+            <summary>
+            The panel above the headers showing the active grouping, in order.
+            <para>
+            Chips can be dragged to reorder, which changes grouping precedence, clicked to
+            flip the group sort direction, and dismissed to ungroup. Column headers dragged
+            from the grid land here too - the grid routes its existing header-drag gesture
+            into this panel when the pointer is over it.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.GroupDropAreaControl.IsDropTarget">
+            <summary>True while a column header is being dragged over this panel.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.GroupDropAreaControl.DropIndicatorBrush">
+            <summary>Accent used for the ghost outline and the drop line.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.GroupDropAreaControl.ShowDragPreview">
+            <summary>Set false to drag chips without the floating preview.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.GroupDropAreaControl.GetInsertX(System.Int32)">
+            <summary>X position of the drop line for an insertion index.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.GroupDropAreaControl.ShowInsertion(System.Int32)">
+            <summary>Shows the drop line at a grouping index. Used by the panel and by the grid.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.GroupDropAreaControl.GetInsertIndex(System.Windows.Point)">
+            <summary>
+            Insertion index for a point in this panel's coordinates. Used both by chip
+            reordering and by column headers dropped in from the grid.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.GroupDropAreaControl.RequestRemove(System.String)">
+            <summary>Called by the chip's close button.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.TreeGridRowControl">
+            <summary>
+            Lays out the cells of a single row.
+            <para>
+            Rows own their horizontal geometry rather than being translated wholesale by
+            the scroll viewer. That is what makes frozen panes possible: frozen cells are
+            arranged at fixed offsets while the middle band is shifted by
+            <see cref="P:TreeGrid.Wpf.View.TreeGridRowControl.HorizontalOffset"/> and clipped to the scrollable region.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.ShowNodeCheckBox">
+            <summary>Shows the hierarchy checkbox in the expander column.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.IsRowSelected">
+            <summary>Row-level selection state, applied to every realised cell.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.CurrentColumnIndex">
+            <summary>Column index of the current cell, or -1 when this row does not own it.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.IsCellSelectionUnit">
+            <summary>In cell mode only the current cell paints as selected.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.HeaderIndicatorResolver">
+            <summary>
+            Supplies sort/filter indicator state for a header cell. Set by the grid so
+            the row control does not need to know about the sort or filter controllers.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.RowIndex">
+            <summary>Row index in the flat view. Needed to resolve merge ranges.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.MergeResolver">
+            <summary>Resolves how a cell participates in a vertical merge.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.ErrorResolver">
+            <summary>Supplies the validation error for a cell, or null.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.FrozenLineBrush">
+            <summary>Draws vertical separators at the frozen-pane boundaries.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.MergedCellBackground">
+            <summary>
+            Opaque brush painted behind merged cells. Without one, the alternating
+            stripes of the rows underneath show through the span.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.VisualStyle">
+            <summary>Resolved appearance for this grid.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.RowOverrides">
+            <summary>Per-row conditional overrides, or null.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.SuppressConditionalStyle">
+            <summary>
+            True while the row shows its selection / hover colour over the conditional colours,
+            so neither the row nor the cell overrides are painted.
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.CellStyleResolver">
+            <summary>Supplies per-cell conditional overrides, or null.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.TreeGridRowControl.IsRightToLeft">
+            <summary>
+            Mirrors cell positions for right-to-left cultures. Only the arrange pass is
+            mirrored; FlowDirection on the cells themselves handles text direction, so
+            content is not double-flipped.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridRowControl.BindNode(TreeGrid.Wpf.Data.TreeNode)">
+            <summary>Re-targets a pooled row onto a different node.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridRowControl.RefreshCells">
+            <summary>Recomputes which cells are realised and rebinds them.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridRowControl.RefreshState">
+            <summary>
+            Repaints selection and current-cell state without re-reading bound values.
+            Selection changes fire far more often than data changes, and this keeps a
+            arrow-key repeat from turning into a full rebind of every visible cell.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridRowControl.RefreshHeaderIndicators">
+            <summary>Repaints header sort and filter glyphs without rebinding columns.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridRowControl.GetCell(System.Int32)">
+            <summary>Returns the cell hosting a column, or null when it is not realised.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.TreeGridRowControl.GetHeaderCell(System.Int32)">
+            <summary>Header-row equivalent of <see cref="M:TreeGrid.Wpf.View.TreeGridRowControl.GetCell(System.Int32)"/>.</summary>
+        </member>
+        <member name="T:TreeGrid.Wpf.View.VisualContainer">
+            <summary>
+            The row virtualizer. Realises only the rows intersecting the viewport and
+            recycles row containers as the user scrolls, so memory and layout cost track
+            viewport size rather than record count.
+            <para>
+            Rows are arranged full-viewport-width and translate their own cells; the
+            container never applies a horizontal render transform. That separation is what
+            lets frozen columns stay put during horizontal scroll.
+            </para>
+            </summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.SelectionOverridesConditionalStyle">
+            <summary>Selected and hovered rows ignore the conditional row / cell colours.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.ShowNodeCheckBox">
+            <summary>Shows the hierarchy checkbox in the expander column.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.IsCellSelectionUnit">
+            <summary>True when selection is per-cell rather than per-row.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.CurrentColumnResolver">
+            <summary>Supplies the current-cell column for a given node, or -1.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.MergeResolver">
+            <summary>Resolves vertical merge participation for a cell.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.ErrorResolver">
+            <summary>Supplies the validation error message for a cell, or null.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.MergedCellBackground">
+            <summary>Opaque backing brush for cells that span multiple rows.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.RowStyleResolver">
+            <summary>Supplies per-row conditional overrides, or null.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.CellStyleResolver">
+            <summary>Supplies per-cell conditional overrides, or null.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.HoveredRowIndex">
+            <summary>Flat index of the row under the pointer, or -1.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.FirstVisibleRow">
+            <summary>Index of the topmost realised row. Merge clamping needs this.</summary>
+        </member>
+        <member name="P:TreeGrid.Wpf.View.VisualContainer.OverscanRows">
+            <summary>Number of extra rows realised above and below the viewport.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.ResetRows">
+            <summary>Drops every realised row. Call after a source reset.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.RowIndexFromPoint(System.Windows.Point)">
+            <summary>Row index under a point in container coordinates, or -1.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.RefreshRowStates">
+            <summary>
+            Repaints selection state on realised rows without a measure pass. This is
+            the hot path for arrow-key navigation and rubber-band selection.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.RefreshRowContent">
+            <summary>Rebinds realised rows in place, keeping scroll position and pooling.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.ColumnIndexFromPoint(System.Windows.Point)">
+            <summary>Column index under a point in container coordinates, or -1.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.RowHitTest(System.Windows.Point)">
+            <summary>Row index and offset within that row, for drag-drop hit testing.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.GetRowOffset(System.Int32)">
+            <summary>Y position of a row in container coordinates.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.SuppressesConditionalStyle(System.Int32,TreeGrid.Wpf.Data.TreeNode)">
+            <summary>True when the row's selection / hover colour must win over its conditional colours.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.ResolveRowBackground(System.Int32,TreeGrid.Wpf.Data.TreeNode)">
+            <summary>
+            Row background precedence: conditional override, then selection, then hover,
+            then the alternating stripe, then the plain row brush. With
+            <see cref="P:TreeGrid.Wpf.View.VisualContainer.SelectionOverridesConditionalStyle"/>, selection and hover come first.
+            </summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.SyncRowHorizontalOffset">
+            <summary>Pushes the current horizontal offset into already-realised rows.</summary>
+        </member>
+        <member name="M:TreeGrid.Wpf.View.VisualContainer.ScrollIntoView(System.Int32)">
+            <summary>Scrolls the given flat row index into view.</summary>
+        </member>
+        <member name="T:XamlGeneratedNamespace.GeneratedInternalTypeHelper">
+            <summary>
+            GeneratedInternalTypeHelper
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateInstance(System.Type,System.Globalization.CultureInfo)">
+            <summary>
+            CreateInstance
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.GetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            GetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.SetPropertyValue(System.Reflection.PropertyInfo,System.Object,System.Object,System.Globalization.CultureInfo)">
+            <summary>
+            SetPropertyValue
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.CreateDelegate(System.Type,System.Object,System.String)">
+            <summary>
+            CreateDelegate
+            </summary>
+        </member>
+        <member name="M:XamlGeneratedNamespace.GeneratedInternalTypeHelper.AddEventHandler(System.Reflection.EventInfo,System.Object,System.Delegate)">
+            <summary>
+            AddEventHandler
+            </summary>
+        </member>
+    </members>
+</doc>

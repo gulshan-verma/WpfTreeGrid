@@ -1,0 +1,36 @@
+<Project>
+
+  <!-- Shared NuGet metadata for every package under src/. The sample app lives
+       outside this folder, so it does not pick any of this up. -->
+
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Authors>Gulshan Verma</Authors>
+    <Copyright>Copyright (c) 2026 Gulshan Verma</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/gulshan-verma/WpfTreeGrid</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/gulshan-verma/WpfTreeGrid.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <!-- IntelliSense for consumers. Undocumented members are not an error. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- Debugging support: .snupkg symbols plus SourceLink (built into the .NET 8+ SDK). -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Each project ships the icon.png from its own folder. -->
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildProjectDirectory)\icon.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+</Project>
