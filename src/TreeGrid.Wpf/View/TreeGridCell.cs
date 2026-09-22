@@ -112,10 +112,21 @@ namespace TreeGrid.Wpf.View
             nameof(GridLineBrush), typeof(Brush), typeof(TreeGridCell), new PropertyMetadata(null));
 
         public static readonly DependencyProperty ShowVerticalGridLineProperty = DependencyProperty.Register(
-            nameof(ShowVerticalGridLine), typeof(bool), typeof(TreeGridCell), new PropertyMetadata(true));
+            nameof(ShowVerticalGridLine), typeof(bool), typeof(TreeGridCell), new PropertyMetadata(true, OnGridLineVisibilityChanged));
+
+        public static readonly DependencyProperty ShowHorizontalGridLineProperty = DependencyProperty.Register(
+            nameof(ShowHorizontalGridLine), typeof(bool), typeof(TreeGridCell), new PropertyMetadata(true, OnGridLineVisibilityChanged));
+
+        private static readonly DependencyPropertyKey GridLineThicknessPropertyKey = DependencyProperty.RegisterReadOnly(
+            nameof(GridLineThickness), typeof(Thickness), typeof(TreeGridCell), new PropertyMetadata(new Thickness(0, 0, 1, 1)));
+
+        public static readonly DependencyProperty GridLineThicknessProperty = GridLineThicknessPropertyKey.DependencyProperty;
 
         public static readonly DependencyProperty CurrentCellBorderBrushProperty = DependencyProperty.Register(
             nameof(CurrentCellBorderBrush), typeof(Brush), typeof(TreeGridCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty CurrentCellBorderThicknessProperty = DependencyProperty.Register(
+            nameof(CurrentCellBorderThickness), typeof(Thickness), typeof(TreeGridCell), new PropertyMetadata(new Thickness(1)));
 
         public static readonly DependencyProperty ErrorBrushProperty = DependencyProperty.Register(
             nameof(ErrorBrush), typeof(Brush), typeof(TreeGridCell), new PropertyMetadata(null));
@@ -263,10 +274,35 @@ namespace TreeGrid.Wpf.View
             set => SetValue(ShowVerticalGridLineProperty, value);
         }
 
+        public bool ShowHorizontalGridLine
+        {
+            get => (bool)GetValue(ShowHorizontalGridLineProperty);
+            set => SetValue(ShowHorizontalGridLineProperty, value);
+        }
+
+        /// <summary>
+        /// The cell's right / bottom grid line. The cell draws its own bottom line (rather than
+        /// leaving it to the row) so a cell with an opaque background cannot paint over it.
+        /// </summary>
+        public Thickness GridLineThickness => (Thickness)GetValue(GridLineThicknessProperty);
+
+        private static void OnGridLineVisibilityChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var cell = (TreeGridCell)d;
+            cell.SetValue(GridLineThicknessPropertyKey, new Thickness(
+                0, 0, cell.ShowVerticalGridLine ? 1 : 0, cell.ShowHorizontalGridLine ? 1 : 0));
+        }
+
         public Brush CurrentCellBorderBrush
         {
             get => (Brush)GetValue(CurrentCellBorderBrushProperty);
             set => SetValue(CurrentCellBorderBrushProperty, value);
+        }
+
+        public Thickness CurrentCellBorderThickness
+        {
+            get => (Thickness)GetValue(CurrentCellBorderThicknessProperty);
+            set => SetValue(CurrentCellBorderThicknessProperty, value);
         }
 
         public Brush ErrorBrush
@@ -378,7 +414,9 @@ namespace TreeGrid.Wpf.View
 
             GridLineBrush = style.GridLineBrush;
             ShowVerticalGridLine = style.ShowVerticalGridLines;
+            ShowHorizontalGridLine = style.ShowHorizontalGridLines;
             CurrentCellBorderBrush = style.CurrentCellBorderBrush;
+            CurrentCellBorderThickness = style.CurrentCellBorderThickness;
             ErrorBrush = style.ErrorBrush;
             EditorBackground = style.EditorBackground;
             ExpanderGlyphBrush = style.ExpanderGlyphBrush;
@@ -532,6 +570,24 @@ namespace TreeGrid.Wpf.View
         public static readonly DependencyProperty HasHeaderTemplateProperty = DependencyProperty.Register(
             nameof(HasHeaderTemplate), typeof(bool), typeof(TreeGridHeaderCell), new PropertyMetadata(false));
 
+        // Glyph brushes are per-instance rather than theme-level. The header's own
+        // Background is already per-instance, so a theme-level glyph colour could not
+        // follow it - a custom dark header left the icons invisible.
+        public static readonly DependencyProperty SortIconBrushProperty = DependencyProperty.Register(
+            nameof(SortIconBrush), typeof(Brush), typeof(TreeGridHeaderCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty FilterIconBrushProperty = DependencyProperty.Register(
+            nameof(FilterIconBrush), typeof(Brush), typeof(TreeGridHeaderCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty FilterIconActiveBrushProperty = DependencyProperty.Register(
+            nameof(FilterIconActiveBrush), typeof(Brush), typeof(TreeGridHeaderCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty SortBadgeBackgroundProperty = DependencyProperty.Register(
+            nameof(SortBadgeBackground), typeof(Brush), typeof(TreeGridHeaderCell), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty SortBadgeForegroundProperty = DependencyProperty.Register(
+            nameof(SortBadgeForeground), typeof(Brush), typeof(TreeGridHeaderCell), new PropertyMetadata(null));
+
         public static readonly DependencyProperty SortNumberProperty = DependencyProperty.Register(
             nameof(SortNumber), typeof(int), typeof(TreeGridHeaderCell), new PropertyMetadata(0));
 
@@ -585,6 +641,37 @@ namespace TreeGrid.Wpf.View
         {
             get => (bool)GetValue(HasHeaderTemplateProperty);
             set => SetValue(HasHeaderTemplateProperty, value);
+        }
+
+        public Brush SortIconBrush
+        {
+            get => (Brush)GetValue(SortIconBrushProperty);
+            set => SetValue(SortIconBrushProperty, value);
+        }
+
+        public Brush FilterIconBrush
+        {
+            get => (Brush)GetValue(FilterIconBrushProperty);
+            set => SetValue(FilterIconBrushProperty, value);
+        }
+
+        /// <summary>Used once a filter is actually applied to the column.</summary>
+        public Brush FilterIconActiveBrush
+        {
+            get => (Brush)GetValue(FilterIconActiveBrushProperty);
+            set => SetValue(FilterIconActiveBrushProperty, value);
+        }
+
+        public Brush SortBadgeBackground
+        {
+            get => (Brush)GetValue(SortBadgeBackgroundProperty);
+            set => SetValue(SortBadgeBackgroundProperty, value);
+        }
+
+        public Brush SortBadgeForeground
+        {
+            get => (Brush)GetValue(SortBadgeForegroundProperty);
+            set => SetValue(SortBadgeForegroundProperty, value);
         }
 
         /// <summary>Position of this column in a multi-column sort, 1-based. Zero when unsorted.</summary>

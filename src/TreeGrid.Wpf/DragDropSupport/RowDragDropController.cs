@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Media;
 using TreeGrid.Wpf.Data;
+using TreeGrid.Wpf.View;
 
 namespace TreeGrid.Wpf.DragDropSupport
 {
@@ -67,6 +68,26 @@ namespace TreeGrid.Wpf.DragDropSupport
         /// reloads rather than moving nodes, which keeps the source authoritative.
         /// </summary>
         public bool HandledByHost { get; set; }
+    }
+
+    /// <summary>What a completed drop resolved to, so the grid can act on it.</summary>
+    public sealed class RowDropOutcome
+    {
+        public static RowDropOutcome None { get; } = new RowDropOutcome();
+
+        public IReadOnlyList<TreeNode> Nodes { get; internal set; } = Array.Empty<TreeNode>();
+
+        public TreeNode TargetNode { get; internal set; }
+
+        public RowDropPosition Position { get; internal set; }
+
+        /// <summary>True when a handler said it relocated the records itself.</summary>
+        public bool HandledByHost { get; internal set; }
+
+        /// <summary>True when this call rearranged the node tree.</summary>
+        public bool NodesMoved { get; internal set; }
+
+        public bool IsValid => TargetNode != null && Nodes.Count > 0;
     }
 
     /// <summary>
@@ -187,25 +208,40 @@ namespace TreeGrid.Wpf.DragDropSupport
         /// <summary>
         /// Completes the drop. The root list must be supplied because a node can both
         /// leave and enter it, and only the flat view owns that collection.
+        /// <para>
+        /// Pass <paramref name="moveNodes"/> false when the caller is going to update
+        /// the source collections instead and rebuild from them; moving nodes as well
+        /// would apply the same relocation twice.
+        /// </para>
         /// </summary>
-        public bool Complete(IList<TreeNode> rootNodes)
+        public RowDropOutcome Complete(IList<TreeNode> rootNodes, bool moveNodes = true)
         {
             if (!IsDragging || TargetNode == null || !IsCurrentDropAllowed)
             {
                 Cancel();
-                return false;
+                return RowDropOutcome.None;
             }
 
-            var args = new RowDroppedEventArgs(new List<TreeNode>(_dragging), TargetNode, Position);
+            var nodes = new List<TreeNode>(_dragging);
+            var target = TargetNode;
+            var position = Position;
+
+            var args = new RowDroppedEventArgs(nodes, target, position);
             Dropped?.Invoke(this, args);
 
-            var moved = false;
+            var outcome = new RowDropOutcome
+            {
+                Nodes = nodes,
+                TargetNode = target,
+                Position = position,
+                HandledByHost = args.HandledByHost
+            };
 
-            if (!args.HandledByHost)
-                moved = MoveNodes(_dragging, TargetNode, Position, rootNodes);
+            if (!args.HandledByHost && moveNodes)
+                outcome.NodesMoved = MoveNodes(nodes, target, position, rootNodes);
 
             Reset();
-            return moved || args.HandledByHost;
+            return outcome;
         }
 
         public void Cancel() => Reset();
@@ -339,14 +375,11 @@ namespace TreeGrid.Wpf.DragDropSupport
 
             var brush = indicatorBrush ?? Brushes.DodgerBlue;
 
-            _allowedPen = new Pen(brush, 2);
-            _allowedPen.Freeze();
+            _allowedPen = new Pen(brush, 2).FreezeIfPossible();
 
-            _deniedPen = new Pen(Brushes.IndianRed, 2) { DashStyle = DashStyles.Dash };
-            _deniedPen.Freeze();
+            _deniedPen = new Pen(Brushes.IndianRed, 2) { DashStyle = DashStyles.Dash }.FreezeIfPossible();
 
-            _intoBrush = new SolidColorBrush(Color.FromArgb(48, 31, 111, 235));
-            _intoBrush.Freeze();
+            _intoBrush = new SolidColorBrush(Color.FromArgb(48, 31, 111, 235)).FreezeIfPossible();
         }
 
         public double IndicatorY { get; private set; } = -1;

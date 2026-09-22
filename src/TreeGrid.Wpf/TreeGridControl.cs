@@ -24,6 +24,7 @@ using TreeGrid.Wpf.Export;
 using TreeGrid.Wpf.Filtering;
 using TreeGrid.Wpf.Grouping;
 using TreeGrid.Wpf.Headers;
+using TreeGrid.Wpf.Localization;
 using TreeGrid.Wpf.Merging;
 using TreeGrid.Wpf.Selection;
 using TreeGrid.Wpf.Sorting;
@@ -57,6 +58,7 @@ namespace TreeGrid.Wpf
         private SelectionController _selection;
         private readonly CheckStateController _checkState = new CheckStateController();
         private ColumnReorderAdorner _reorderAdorner;
+        private DragPreviewAdorner _dragPreview;
         private TreeGridColumn _draggedColumn;
         private int _dropIndex = -1;
         private bool _autoFitPassPending;
@@ -74,9 +76,23 @@ namespace TreeGrid.Wpf
         private RowDropAdorner _dropAdorner;
         private Point _dragOrigin;
         private bool _dragPending;
+
+        /// <summary>
+        /// Set when a click on a control inside a cell already selected its row in the preview
+        /// pass, so the bubbling pass - when the control lets it through - does not select again
+        /// or take focus away from the control.
+        /// </summary>
+        private bool _cellContentPointerHandled;
         private readonly ClipboardController _clipboard = new ClipboardController();
         private readonly GroupController _groupController = new GroupController();
         private GroupDropAreaControl _groupDropArea;
+        private readonly Dictionary<TreeGridColumn, bool> _hiddenByGrouping
+            = new Dictionary<TreeGridColumn, bool>();
+
+        private readonly HashSet<INotifyPropertyChanged> _observedItems
+            = new HashSet<INotifyPropertyChanged>();
+
+        private bool _syncingMemberPath;
         private TreeGridFooterControl _footer;
         private List<TreeNode> _ungroupedRoots;
         private Dictionary<object, TreeNode> _groupedNodeMap;
@@ -107,6 +123,10 @@ namespace TreeGrid.Wpf
             _sortController = new SortController(SortComparers) { ColumnResolver = FindColumn };
             _sortController.SortDescriptions.CollectionChanged += (s2, e2) => ApplySorting();
             _filterController.FilterChanged += OnFilterControllerChanged;
+
+            HeaderContextMenuItems = new ObservableCollection<FrameworkElement>();
+            RecordContextMenuItems = new ObservableCollection<FrameworkElement>();
+            ExpanderContextMenuItems = new ObservableCollection<FrameworkElement>();
 
             StackedHeaderRows = new StackedHeaderRows();
             StackedHeaderRows.CollectionChanged += (s2, e2) => RebuildStackedHeaders();
@@ -224,6 +244,18 @@ namespace TreeGrid.Wpf
             nameof(SelectionUnit), typeof(GridSelectionUnit), typeof(TreeGridControl),
             new PropertyMetadata(GridSelectionUnit.Row, OnSelectionConfigChanged));
 
+        public static readonly DependencyProperty SelectedMemberPathProperty = DependencyProperty.Register(
+            nameof(SelectedMemberPath), typeof(string), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnMemberPathChanged));
+
+        public static readonly DependencyProperty CheckedMemberPathProperty = DependencyProperty.Register(
+            nameof(CheckedMemberPath), typeof(string), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnMemberPathChanged));
+
+        public static readonly DependencyProperty ObserveMemberPathChangesProperty = DependencyProperty.Register(
+            nameof(ObserveMemberPathChanges), typeof(bool), typeof(TreeGridControl),
+            new PropertyMetadata(false, OnMemberPathChanged));
+
         public static readonly DependencyProperty AllowCheckBoxSelectionProperty = DependencyProperty.Register(
             nameof(AllowCheckBoxSelection), typeof(bool), typeof(TreeGridControl),
             new PropertyMetadata(false, OnVisualConfigChanged));
@@ -237,6 +269,17 @@ namespace TreeGrid.Wpf
 
         public static readonly DependencyProperty AllowColumnReorderingProperty = DependencyProperty.Register(
             nameof(AllowColumnReordering), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(true));
+
+        public static readonly DependencyProperty AllowHidingColumnsProperty = DependencyProperty.Register(
+            nameof(AllowHidingColumns), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(true));
+
+        public static readonly DependencyProperty ShowDragPreviewProperty = DependencyProperty.Register(
+            nameof(ShowDragPreview), typeof(bool), typeof(TreeGridControl),
+            new PropertyMetadata(true, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty DragPreviewOpacityProperty = DependencyProperty.Register(
+            nameof(DragPreviewOpacity), typeof(double), typeof(TreeGridControl),
+            new PropertyMetadata(0.7));
 
         public static readonly DependencyProperty DropIndicatorBrushProperty = DependencyProperty.Register(
             nameof(DropIndicatorBrush), typeof(Brush), typeof(TreeGridControl), new PropertyMetadata(null));
@@ -269,6 +312,23 @@ namespace TreeGrid.Wpf
             nameof(EditTrigger), typeof(EditTrigger), typeof(TreeGridControl),
             new PropertyMetadata(EditTrigger.OnDoubleTap));
 
+        public static readonly DependencyProperty AllowDeleteRowsProperty = DependencyProperty.Register(
+            nameof(AllowDeleteRows), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(false));
+
+        public static readonly DependencyProperty ConfirmRowDeleteProperty = DependencyProperty.Register(
+            nameof(ConfirmRowDelete), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(true));
+
+        public static readonly DependencyProperty AllowBulkValueChangeProperty = DependencyProperty.Register(
+            nameof(AllowBulkValueChange), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(false));
+
+        public static readonly DependencyProperty BulkValueChangeModifiersProperty = DependencyProperty.Register(
+            nameof(BulkValueChangeModifiers), typeof(ModifierKeys), typeof(TreeGridControl),
+            new PropertyMetadata(ModifierKeys.Control));
+
+        public static readonly DependencyProperty ShowBulkValueChangeConfirmationProperty =
+            DependencyProperty.Register(nameof(ShowBulkValueChangeConfirmation), typeof(bool),
+                typeof(TreeGridControl), new PropertyMetadata(true));
+
         public static readonly DependencyProperty ValidationModeProperty = DependencyProperty.Register(
             nameof(ValidationMode), typeof(GridValidationMode), typeof(TreeGridControl),
             new PropertyMetadata(GridValidationMode.Cell, OnValidationModeChanged));
@@ -283,6 +343,9 @@ namespace TreeGrid.Wpf
 
         public static readonly DependencyProperty AllowRowDragDropProperty = DependencyProperty.Register(
             nameof(AllowRowDragDrop), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(false));
+
+        public static readonly DependencyProperty UpdateSourceOnRowDropProperty = DependencyProperty.Register(
+            nameof(UpdateSourceOnRowDrop), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(true));
 
         public static readonly DependencyProperty StackedHeaderRowHeightProperty = DependencyProperty.Register(
             nameof(StackedHeaderRowHeight), typeof(double), typeof(TreeGridControl),
@@ -302,6 +365,9 @@ namespace TreeGrid.Wpf
         public static readonly DependencyProperty AllowPasteProperty = DependencyProperty.Register(
             nameof(AllowPaste), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(false));
 
+        public static readonly DependencyProperty AllowExcelPasteProperty = DependencyProperty.Register(
+            nameof(AllowExcelPaste), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(true));
+
         public static readonly DependencyProperty ShowDefaultContextMenusProperty = DependencyProperty.Register(
             nameof(ShowDefaultContextMenus), typeof(bool), typeof(TreeGridControl), new PropertyMetadata(false));
 
@@ -315,6 +381,98 @@ namespace TreeGrid.Wpf
             nameof(ExpanderContextMenu), typeof(ContextMenu), typeof(TreeGridControl), new PropertyMetadata(null));
 
         // ------------------------------------------------------ appearance
+
+        public static readonly DependencyProperty SortIconBrushProperty = DependencyProperty.Register(
+            nameof(SortIconBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterIconBrushProperty = DependencyProperty.Register(
+            nameof(FilterIconBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterIconActiveBrushProperty = DependencyProperty.Register(
+            nameof(FilterIconActiveBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty SortBadgeBackgroundProperty = DependencyProperty.Register(
+            nameof(SortBadgeBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty SortBadgeForegroundProperty = DependencyProperty.Register(
+            nameof(SortBadgeForeground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterPopupBackgroundProperty = DependencyProperty.Register(
+            nameof(FilterPopupBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterPopupForegroundProperty = DependencyProperty.Register(
+            nameof(FilterPopupForeground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterPopupBorderBrushProperty = DependencyProperty.Register(
+            nameof(FilterPopupBorderBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterPopupAccentBrushProperty = DependencyProperty.Register(
+            nameof(FilterPopupAccentBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterListBackgroundProperty = DependencyProperty.Register(
+            nameof(FilterListBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterListForegroundProperty = DependencyProperty.Register(
+            nameof(FilterListForeground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterListBorderBrushProperty = DependencyProperty.Register(
+            nameof(FilterListBorderBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterItemHoverBackgroundProperty = DependencyProperty.Register(
+            nameof(FilterItemHoverBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterItemSelectedBackgroundProperty = DependencyProperty.Register(
+            nameof(FilterItemSelectedBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterInputBackgroundProperty = DependencyProperty.Register(
+            nameof(FilterInputBackground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterInputForegroundProperty = DependencyProperty.Register(
+            nameof(FilterInputForeground), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterInputBorderBrushProperty = DependencyProperty.Register(
+            nameof(FilterInputBorderBrush), typeof(Brush), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty AllowFilterPopupResizeProperty = DependencyProperty.Register(
+            nameof(AllowFilterPopupResize), typeof(bool), typeof(TreeGridControl),
+            new PropertyMetadata(true, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty MinFilterPopupWidthProperty = DependencyProperty.Register(
+            nameof(MinFilterPopupWidth), typeof(double), typeof(TreeGridControl),
+            new PropertyMetadata(220d, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty MinFilterListHeightProperty = DependencyProperty.Register(
+            nameof(MinFilterListHeight), typeof(double), typeof(TreeGridControl),
+            new PropertyMetadata(80d, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterPopupWidthProperty = DependencyProperty.Register(
+            nameof(FilterPopupWidth), typeof(double), typeof(TreeGridControl),
+            new PropertyMetadata(270d, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterListMaxHeightProperty = DependencyProperty.Register(
+            nameof(FilterListMaxHeight), typeof(double), typeof(TreeGridControl),
+            new PropertyMetadata(180d, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty FilterPopupStyleProperty = DependencyProperty.Register(
+            nameof(FilterPopupStyle), typeof(Style), typeof(TreeGridControl),
+            new PropertyMetadata(null, OnVisualConfigChanged));
 
         public static readonly DependencyProperty HeaderBackgroundProperty = DependencyProperty.Register(
             nameof(HeaderBackground), typeof(Brush), typeof(TreeGridControl),
@@ -348,6 +506,14 @@ namespace TreeGrid.Wpf
             nameof(HoverRowBackground), typeof(Brush), typeof(TreeGridControl),
             new PropertyMetadata(null, OnVisualConfigChanged));
 
+        public static readonly DependencyProperty SelectOnCellContentInteractionProperty = DependencyProperty.Register(
+            nameof(SelectOnCellContentInteraction), typeof(bool), typeof(TreeGridControl),
+            new PropertyMetadata(true));
+
+        public static readonly DependencyProperty SelectionOverridesConditionalStyleProperty = DependencyProperty.Register(
+            nameof(SelectionOverridesConditionalStyle), typeof(bool), typeof(TreeGridControl),
+            new PropertyMetadata(false, OnVisualConfigChanged));
+
         public static readonly DependencyProperty SelectedRowForegroundProperty = DependencyProperty.Register(
             nameof(SelectedRowForeground), typeof(Brush), typeof(TreeGridControl),
             new PropertyMetadata(null, OnVisualConfigChanged));
@@ -379,6 +545,10 @@ namespace TreeGrid.Wpf
         public static readonly DependencyProperty CurrentCellBorderBrushProperty = DependencyProperty.Register(
             nameof(CurrentCellBorderBrush), typeof(Brush), typeof(TreeGridControl),
             new PropertyMetadata(null, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty CurrentCellBorderThicknessProperty = DependencyProperty.Register(
+            nameof(CurrentCellBorderThickness), typeof(Thickness), typeof(TreeGridControl),
+            new PropertyMetadata(new Thickness(1), OnVisualConfigChanged));
 
         public static readonly DependencyProperty ErrorBrushProperty = DependencyProperty.Register(
             nameof(ErrorBrush), typeof(Brush), typeof(TreeGridControl),
@@ -418,6 +588,10 @@ namespace TreeGrid.Wpf
         public static readonly DependencyProperty GroupDropAreaHeightProperty = DependencyProperty.Register(
             nameof(GroupDropAreaHeight), typeof(double), typeof(TreeGridControl),
             new PropertyMetadata(38d, OnVisualConfigChanged));
+
+        public static readonly DependencyProperty HideGroupedColumnsProperty = DependencyProperty.Register(
+            nameof(HideGroupedColumns), typeof(bool), typeof(TreeGridControl),
+            new PropertyMetadata(true, OnHideGroupedColumnsChanged));
 
         public static readonly DependencyProperty ShowGroupItemCountProperty = DependencyProperty.Register(
             nameof(ShowGroupItemCount), typeof(bool), typeof(TreeGridControl),
@@ -550,6 +724,39 @@ namespace TreeGrid.Wpf
             set => SetValue(SelectionUnitProperty, value);
         }
 
+        /// <summary>
+        /// Boolean property on the record that mirrors row selection. Selecting a row
+        /// sets it true and deselecting sets it false, and the value is read back when
+        /// the source loads so saved state is honoured.
+        /// </summary>
+        public string SelectedMemberPath
+        {
+            get => (string)GetValue(SelectedMemberPathProperty);
+            set => SetValue(SelectedMemberPathProperty, value);
+        }
+
+        /// <summary>Same idea for the hierarchy checkbox. Accepts bool or bool?.</summary>
+        public string CheckedMemberPath
+        {
+            get => (string)GetValue(CheckedMemberPathProperty);
+            set => SetValue(CheckedMemberPathProperty, value);
+        }
+
+        /// <summary>
+        /// Makes the mapping two-way live: changes the host makes to the mapped
+        /// property are reflected in the grid.
+        /// <para>
+        /// Off by default because it subscribes to PropertyChanged on every record,
+        /// which is a real cost on a large source. Leave it off and call
+        /// <see cref="RefreshSelectionFromSource"/> after a bulk change instead.
+        /// </para>
+        /// </summary>
+        public bool ObserveMemberPathChanges
+        {
+            get => (bool)GetValue(ObserveMemberPathChangesProperty);
+            set => SetValue(ObserveMemberPathChangesProperty, value);
+        }
+
         /// <summary>Shows a tri-state checkbox in the expander column.</summary>
         public bool AllowCheckBoxSelection
         {
@@ -573,6 +780,33 @@ namespace TreeGrid.Wpf
         {
             get => (bool)GetValue(AllowColumnReorderingProperty);
             set => SetValue(AllowColumnReorderingProperty, value);
+        }
+
+        /// <summary>
+        /// Offers "Hide this column" in the default header context menu. Set false where the
+        /// column set is managed elsewhere, such as a customize-columns dialog. Columns can
+        /// still be hidden in code through <see cref="TreeGridColumn.IsHidden"/>.
+        /// </summary>
+        public bool AllowHidingColumns
+        {
+            get => (bool)GetValue(AllowHidingColumnsProperty);
+            set => SetValue(AllowHidingColumnsProperty, value);
+        }
+
+        /// <summary>
+        /// Shows a translucent copy of the dragged header or group chip following the
+        /// pointer. Set false for the plain drop-line behaviour.
+        /// </summary>
+        public bool ShowDragPreview
+        {
+            get => (bool)GetValue(ShowDragPreviewProperty);
+            set => SetValue(ShowDragPreviewProperty, value);
+        }
+
+        public double DragPreviewOpacity
+        {
+            get => (double)GetValue(DragPreviewOpacityProperty);
+            set => SetValue(DragPreviewOpacityProperty, value);
         }
 
         public Brush DropIndicatorBrush
@@ -667,6 +901,51 @@ namespace TreeGrid.Wpf
         }
 
         /// <summary>
+        /// Removes the selected rows when Delete is pressed. Off by default, so the
+        /// key keeps its existing meaning until you opt in.
+        /// </summary>
+        public bool AllowDeleteRows
+        {
+            get => (bool)GetValue(AllowDeleteRowsProperty);
+            set => SetValue(AllowDeleteRowsProperty, value);
+        }
+
+        /// <summary>Prompts before deleting. Ignored when a handler suppresses it.</summary>
+        public bool ConfirmRowDelete
+        {
+            get => (bool)GetValue(ConfirmRowDeleteProperty);
+            set => SetValue(ConfirmRowDeleteProperty, value);
+        }
+
+        /// <summary>
+        /// Applies a committed value to every selected row in the same column.
+        /// Off by default; when off, nothing in the edit path changes at all.
+        /// </summary>
+        public bool AllowBulkValueChange
+        {
+            get => (bool)GetValue(AllowBulkValueChangeProperty);
+            set => SetValue(AllowBulkValueChangeProperty, value);
+        }
+
+        /// <summary>
+        /// Keys that must be held as the edit commits. Defaults to Ctrl, so Ctrl+Enter
+        /// fills the selection. Set to <see cref="ModifierKeys.None"/> to apply to the
+        /// selection on every commit without a modifier.
+        /// </summary>
+        public ModifierKeys BulkValueChangeModifiers
+        {
+            get => (ModifierKeys)GetValue(BulkValueChangeModifiersProperty);
+            set => SetValue(BulkValueChangeModifiersProperty, value);
+        }
+
+        /// <summary>Prompts when the affected cells hold more than one distinct value.</summary>
+        public bool ShowBulkValueChangeConfirmation
+        {
+            get => (bool)GetValue(ShowBulkValueChangeConfirmationProperty);
+            set => SetValue(ShowBulkValueChangeConfirmationProperty, value);
+        }
+
+        /// <summary>
         /// Merges vertically adjacent cells holding the same value.
         /// <para>
         /// EXPERIMENTAL and off by default. The implementation is complete and the
@@ -691,6 +970,21 @@ namespace TreeGrid.Wpf
         {
             get => (bool)GetValue(AllowRowDragDropProperty);
             set => SetValue(AllowRowDragDropProperty, value);
+        }
+
+        /// <summary>
+        /// Keeps the data in step with the visual hierarchy after a drop: moves the
+        /// record between child collections when <see cref="ChildPropertyName"/> is
+        /// set, or rewrites its parent key in self-relational mode.
+        /// <para>
+        /// A handler that sets <c>HandledByHost</c> on <c>RowDropped</c> still takes
+        /// precedence. Set false to go back to the grid only rearranging its nodes.
+        /// </para>
+        /// </summary>
+        public bool UpdateSourceOnRowDrop
+        {
+            get => (bool)GetValue(UpdateSourceOnRowDropProperty);
+            set => SetValue(UpdateSourceOnRowDropProperty, value);
         }
 
         public double StackedHeaderRowHeight
@@ -737,12 +1031,37 @@ namespace TreeGrid.Wpf
             set => SetValue(AllowPasteProperty, value);
         }
 
+        /// <summary>
+        /// Expands a pasted block across rows and columns, filling left to right then
+        /// downward from the current cell - the shape Excel puts on the clipboard.
+        /// When false, a paste writes only the current cell. Requires
+        /// <see cref="AllowPaste"/>.
+        /// </summary>
+        public bool AllowExcelPaste
+        {
+            get => (bool)GetValue(AllowExcelPasteProperty);
+            set => SetValue(AllowExcelPasteProperty, value);
+        }
+
         /// <summary>Builds stock menus for regions with no menu supplied.</summary>
         public bool ShowDefaultContextMenus
         {
             get => (bool)GetValue(ShowDefaultContextMenusProperty);
             set => SetValue(ShowDefaultContextMenusProperty, value);
         }
+
+        /// <summary>
+        /// Extra items appended to the stock header menu, after a separator.
+        /// The built-in entries are untouched. Ignored when
+        /// <see cref="HeaderContextMenu"/> replaces the menu outright.
+        /// </summary>
+        public ObservableCollection<FrameworkElement> HeaderContextMenuItems { get; }
+
+        /// <summary>Extra items appended to the stock record menu.</summary>
+        public ObservableCollection<FrameworkElement> RecordContextMenuItems { get; }
+
+        /// <summary>Extra items appended to the stock expander menu.</summary>
+        public ObservableCollection<FrameworkElement> ExpanderContextMenuItems { get; }
 
         public ContextMenu RecordContextMenu
         {
@@ -766,6 +1085,166 @@ namespace TreeGrid.Wpf
 
         /// <summary>The virtualizing panel. Exposed for diagnostics and benchmarking.</summary>
         public VisualContainer Container => _container;
+
+        /// <summary>
+        /// Sort arrow colour. Unset, it follows <see cref="HeaderForeground"/> when
+        /// that is set, otherwise the theme - so a custom header colour can never
+        /// leave the glyph invisible.
+        /// </summary>
+        public Brush SortIconBrush
+        {
+            get => (Brush)GetValue(SortIconBrushProperty);
+            set => SetValue(SortIconBrushProperty, value);
+        }
+
+        /// <summary>Filter funnel colour when no filter is applied.</summary>
+        public Brush FilterIconBrush
+        {
+            get => (Brush)GetValue(FilterIconBrushProperty);
+            set => SetValue(FilterIconBrushProperty, value);
+        }
+
+        /// <summary>Filter funnel colour once the column is filtered.</summary>
+        public Brush FilterIconActiveBrush
+        {
+            get => (Brush)GetValue(FilterIconActiveBrushProperty);
+            set => SetValue(FilterIconActiveBrushProperty, value);
+        }
+
+        public Brush SortBadgeBackground
+        {
+            get => (Brush)GetValue(SortBadgeBackgroundProperty);
+            set => SetValue(SortBadgeBackgroundProperty, value);
+        }
+
+        public Brush SortBadgeForeground
+        {
+            get => (Brush)GetValue(SortBadgeForegroundProperty);
+            set => SetValue(SortBadgeForegroundProperty, value);
+        }
+
+        public Brush FilterPopupBackground
+        {
+            get => (Brush)GetValue(FilterPopupBackgroundProperty);
+            set => SetValue(FilterPopupBackgroundProperty, value);
+        }
+
+        public Brush FilterPopupForeground
+        {
+            get => (Brush)GetValue(FilterPopupForegroundProperty);
+            set => SetValue(FilterPopupForegroundProperty, value);
+        }
+
+        public Brush FilterPopupBorderBrush
+        {
+            get => (Brush)GetValue(FilterPopupBorderBrushProperty);
+            set => SetValue(FilterPopupBorderBrushProperty, value);
+        }
+
+        /// <summary>Colour of the column-name heading inside the popup.</summary>
+        public Brush FilterPopupAccentBrush
+        {
+            get => (Brush)GetValue(FilterPopupAccentBrushProperty);
+            set => SetValue(FilterPopupAccentBrushProperty, value);
+        }
+
+        /// <summary>Background of the value checklist inside the popup.</summary>
+        public Brush FilterListBackground
+        {
+            get => (Brush)GetValue(FilterListBackgroundProperty);
+            set => SetValue(FilterListBackgroundProperty, value);
+        }
+
+        public Brush FilterListForeground
+        {
+            get => (Brush)GetValue(FilterListForegroundProperty);
+            set => SetValue(FilterListForegroundProperty, value);
+        }
+
+        public Brush FilterListBorderBrush
+        {
+            get => (Brush)GetValue(FilterListBorderBrushProperty);
+            set => SetValue(FilterListBorderBrushProperty, value);
+        }
+
+        public Brush FilterItemHoverBackground
+        {
+            get => (Brush)GetValue(FilterItemHoverBackgroundProperty);
+            set => SetValue(FilterItemHoverBackgroundProperty, value);
+        }
+
+        public Brush FilterItemSelectedBackground
+        {
+            get => (Brush)GetValue(FilterItemSelectedBackgroundProperty);
+            set => SetValue(FilterItemSelectedBackgroundProperty, value);
+        }
+
+        /// <summary>Background of the popup's search box, condition boxes and drop-downs.</summary>
+        public Brush FilterInputBackground
+        {
+            get => (Brush)GetValue(FilterInputBackgroundProperty);
+            set => SetValue(FilterInputBackgroundProperty, value);
+        }
+
+        /// <summary>
+        /// Text colour for every editor in the popup, including the Conditions
+        /// section. Separate from <see cref="FilterPopupForeground"/> because
+        /// WPF editors carry a Foreground from their own default style, which a
+        /// popup-level inherited value cannot override.
+        /// </summary>
+        public Brush FilterInputForeground
+        {
+            get => (Brush)GetValue(FilterInputForegroundProperty);
+            set => SetValue(FilterInputForegroundProperty, value);
+        }
+
+        public Brush FilterInputBorderBrush
+        {
+            get => (Brush)GetValue(FilterInputBorderBrushProperty);
+            set => SetValue(FilterInputBorderBrushProperty, value);
+        }
+
+        /// <summary>
+        /// Lets the user drag the filter popup larger from its bottom-right corner.
+        /// The new size is written back to <see cref="FilterPopupWidth"/> and
+        /// <see cref="FilterListMaxHeight"/>, so it survives reopening.
+        /// </summary>
+        public bool AllowFilterPopupResize
+        {
+            get => (bool)GetValue(AllowFilterPopupResizeProperty);
+            set => SetValue(AllowFilterPopupResizeProperty, value);
+        }
+
+        public double MinFilterPopupWidth
+        {
+            get => (double)GetValue(MinFilterPopupWidthProperty);
+            set => SetValue(MinFilterPopupWidthProperty, value);
+        }
+
+        public double MinFilterListHeight
+        {
+            get => (double)GetValue(MinFilterListHeightProperty);
+            set => SetValue(MinFilterListHeightProperty, value);
+        }
+
+        public double FilterPopupWidth
+        {
+            get => (double)GetValue(FilterPopupWidthProperty);
+            set => SetValue(FilterPopupWidthProperty, value);
+        }
+
+        public double FilterListMaxHeight
+        {
+            get => (double)GetValue(FilterListMaxHeightProperty);
+            set => SetValue(FilterListMaxHeightProperty, value);
+        }
+
+        /// <summary>Replaces the popup's Style outright, for a full retemplate.</summary>
+        public Style FilterPopupStyle
+        {
+            get => (Style)GetValue(FilterPopupStyleProperty);
+            set => SetValue(FilterPopupStyleProperty, value);
+        }
 
         /// <summary>Header strip background. Falls back to the current theme when unset.</summary>
         public Brush HeaderBackground
@@ -818,6 +1297,32 @@ namespace TreeGrid.Wpf
             set => SetValue(HoverRowBackgroundProperty, value);
         }
 
+        /// <summary>
+        /// When true, a selected or hovered row shows the selection / hover colours instead of the
+        /// colours from <see cref="QueryRowStyle"/> and <see cref="QueryCellStyle"/>, so conditionally
+        /// highlighted rows still give selection and hover feedback. False (the default) lets the
+        /// conditional colours win.
+        /// </summary>
+        public bool SelectionOverridesConditionalStyle
+        {
+            get => (bool)GetValue(SelectionOverridesConditionalStyleProperty);
+            set => SetValue(SelectionOverridesConditionalStyleProperty, value);
+        }
+
+        /// <summary>
+        /// When true (the default), clicking a control inside a template cell - a button, text box,
+        /// combo box and so on - or moving keyboard focus into one selects its row and makes it the
+        /// current cell, before the control acts on the click. Those controls handle the mouse
+        /// themselves, so without this the grid never sees the click. A row that is already part
+        /// of the selection keeps the selection as it is, so commands acting on the selected rows
+        /// still see all of them.
+        /// </summary>
+        public bool SelectOnCellContentInteraction
+        {
+            get => (bool)GetValue(SelectOnCellContentInteractionProperty);
+            set => SetValue(SelectOnCellContentInteractionProperty, value);
+        }
+
         public Brush SelectedRowForeground
         {
             get => (Brush)GetValue(SelectedRowForegroundProperty);
@@ -865,6 +1370,16 @@ namespace TreeGrid.Wpf
         {
             get => (Brush)GetValue(CurrentCellBorderBrushProperty);
             set => SetValue(CurrentCellBorderBrushProperty, value);
+        }
+
+        /// <summary>
+        /// Width of the border around the current cell (default 1). The border is drawn inside
+        /// the cell, so a wider border takes its space from the cell content.
+        /// </summary>
+        public Thickness CurrentCellBorderThickness
+        {
+            get => (Thickness)GetValue(CurrentCellBorderThicknessProperty);
+            set => SetValue(CurrentCellBorderThicknessProperty, value);
         }
 
         public Brush ErrorBrush
@@ -932,6 +1447,17 @@ namespace TreeGrid.Wpf
             set => SetValue(GroupDropAreaHeightProperty, value);
         }
 
+        /// <summary>
+        /// Hides a column from the grid while it is grouped, since its value is already
+        /// shown on every group header and repeating it in a column is noise. The
+        /// column returns when it leaves the grouping.
+        /// </summary>
+        public bool HideGroupedColumns
+        {
+            get => (bool)GetValue(HideGroupedColumnsProperty);
+            set => SetValue(HideGroupedColumnsProperty, value);
+        }
+
         public bool ShowGroupItemCount
         {
             get => (bool)GetValue(ShowGroupItemCountProperty);
@@ -991,15 +1517,45 @@ namespace TreeGrid.Wpf
 
         public event EventHandler<RowValidatingEventArgs> RowValidating;
 
+        /// <summary>Raised before selected rows are removed. Cancellable.</summary>
+        public event EventHandler<RowsDeletingEventArgs> RowsDeleting;
+
+        /// <summary>Raised after a delete completes.</summary>
+        public event EventHandler<RowsDeletedEventArgs> RowsDeleted;
+
+        /// <summary>Raised before a value is pushed across the selection. Cancellable.</summary>
+        public event EventHandler<BulkValueChangingEventArgs> BulkValueChanging;
+
+        /// <summary>Raised after a bulk update, with the counts.</summary>
+        public event EventHandler<BulkValueChangedEventArgs> BulkValueChanged;
+
         public event EventHandler<RowDragStartingEventArgs> RowDragStarting;
 
         public event EventHandler<RowDragOverEventArgs> RowDragOver;
 
         public event EventHandler<RowDroppedEventArgs> RowDropped;
 
+        /// <summary>
+        /// Raised once the drop is finished and the hierarchy is settled: after the
+        /// child collections or parent keys have been updated and the view rebuilt.
+        /// </summary>
+        public event EventHandler<RowDropCompletedEventArgs> RowDropCompleted;
+
         public event EventHandler<CopyContentEventArgs> CopyContent;
 
         public event EventHandler<PasteContentEventArgs> PasteContent;
+
+        /// <summary>Raised after a paste, with the counts. Nothing is raised for a no-op.</summary>
+        public event EventHandler<GridPasteResult> PasteCompleted;
+
+        /// <summary>Raised before a column is moved by a drag. Cancel to refuse.</summary>
+        public event EventHandler<ColumnReorderingEventArgs> ColumnReordering;
+
+        /// <summary>
+        /// Raised after a column moves, whether by drag or by mutating
+        /// <see cref="Columns"/> directly.
+        /// </summary>
+        public event EventHandler<ColumnReorderedEventArgs> ColumnReordered;
 
         public event EventHandler<GridContextMenuOpeningEventArgs> GridContextMenuOpening;
 
@@ -1144,6 +1700,64 @@ namespace TreeGrid.Wpf
             grid._editController.ValidationMode = grid.ValidationMode;
         }
 
+        private static void OnHideGroupedColumnsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var grid = (TreeGridControl)d;
+            grid.SyncGroupedColumnVisibility();
+            grid.RefreshLayout();
+        }
+
+        /// <summary>
+        /// Hides grouped columns and restores them when they leave the grouping.
+        /// <para>
+        /// The column's own IsHidden is remembered before it is taken over, so a column
+        /// the host had already hidden does not reappear when it is ungrouped.
+        /// </para>
+        /// </summary>
+        private void SyncGroupedColumnVisibility()
+        {
+            var grouped = new HashSet<string>(StringComparer.Ordinal);
+
+            if (HideGroupedColumns)
+            {
+                foreach (var description in _groupController.Descriptions)
+                {
+                    if (!string.IsNullOrEmpty(description.ColumnName))
+                        grouped.Add(description.ColumnName);
+                }
+            }
+
+            // These writes must not each trigger their own relayout; one follows.
+            _suppressColumnNotifications = true;
+
+            try
+            {
+                foreach (var column in Columns)
+                {
+                    if (string.IsNullOrEmpty(column.MappingName))
+                        continue;
+
+                    if (grouped.Contains(column.MappingName))
+                    {
+                        if (!_hiddenByGrouping.ContainsKey(column))
+                        {
+                            _hiddenByGrouping[column] = column.IsHidden;
+                            column.IsHidden = true;
+                        }
+                    }
+                    else if (_hiddenByGrouping.TryGetValue(column, out var wasHidden))
+                    {
+                        column.IsHidden = wasHidden;
+                        _hiddenByGrouping.Remove(column);
+                    }
+                }
+            }
+            finally
+            {
+                _suppressColumnNotifications = false;
+            }
+        }
+
         private static void OnMergeConfigChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var grid = (TreeGridControl)d;
@@ -1235,9 +1849,34 @@ namespace TreeGrid.Wpf
             CellFontWeight = CellFontWeight,
             CellPadding = CellPadding,
 
+            // Glyphs follow an explicit HeaderForeground before the theme brush.
+            // A custom header colour would otherwise leave the icons unreadable,
+            // which is exactly how they went missing on dark headers.
+            SortIconBrush = SortIconBrush ?? HeaderForeground ?? ThemeBrush("TreeGrid.ExpanderGlyph"),
+            FilterIconBrush = FilterIconBrush ?? HeaderForeground ?? ThemeBrush("TreeGrid.FilterGlyph"),
+            FilterIconActiveBrush = FilterIconActiveBrush ?? ThemeBrush("TreeGrid.FilterGlyphActive"),
+            SortBadgeBackground = SortBadgeBackground ?? ThemeBrush("TreeGrid.SortBadgeBackground"),
+            SortBadgeForeground = SortBadgeForeground ?? HeaderForeground ?? ThemeBrush("TreeGrid.HeaderForeground"),
+
+            FilterPopupBackground = FilterPopupBackground ?? ThemeBrush("TreeGrid.PopupBackground"),
+            FilterPopupForeground = FilterPopupForeground ?? ThemeBrush("TreeGrid.CellForeground"),
+            FilterPopupBorderBrush = FilterPopupBorderBrush ?? ThemeBrush("TreeGrid.BorderBrush"),
+            FilterPopupAccentBrush = FilterPopupAccentBrush ?? FilterPopupForeground ?? ThemeBrush("TreeGrid.HeaderForeground"),
+            FilterListBackground = FilterListBackground ?? FilterPopupBackground ?? ThemeBrush("TreeGrid.PopupBackground"),
+            FilterListForeground = FilterListForeground ?? FilterPopupForeground ?? ThemeBrush("TreeGrid.CellForeground"),
+            FilterListBorderBrush = FilterListBorderBrush ?? ThemeBrush("TreeGrid.BorderBrush"),
+            FilterItemHoverBackground = FilterItemHoverBackground ?? ThemeBrush("TreeGrid.AlternatingRowBackground"),
+            FilterItemSelectedBackground = FilterItemSelectedBackground ?? ThemeBrush("TreeGrid.SelectedRowBackground"),
+            FilterInputBackground = FilterInputBackground ?? ThemeBrush("TreeGrid.EditorBackground"),
+            FilterInputForeground = FilterInputForeground ?? FilterPopupForeground ?? ThemeBrush("TreeGrid.CellForeground"),
+            FilterInputBorderBrush = FilterInputBorderBrush ?? FilterPopupBorderBrush ?? ThemeBrush("TreeGrid.BorderBrush"),
+            FilterPopupWidth = FilterPopupWidth,
+            FilterListMaxHeight = FilterListMaxHeight,
+
             GridLineBrush = GridLineBrush ?? ThemeBrush("TreeGrid.GridLineBrush"),
             GridLinesVisibility = GridLinesVisibility,
             CurrentCellBorderBrush = CurrentCellBorderBrush ?? ThemeBrush("TreeGrid.CurrentCellBorder"),
+            CurrentCellBorderThickness = CurrentCellBorderThickness,
             ErrorBrush = ErrorBrush ?? ThemeBrush("TreeGrid.ErrorBrush"),
             EditorBackground = EditorBackground ?? ThemeBrush("TreeGrid.EditorBackground"),
             ExpanderGlyphBrush = ExpanderGlyphBrush ?? ThemeBrush("TreeGrid.ExpanderGlyph"),
@@ -1405,6 +2044,7 @@ namespace TreeGrid.Wpf
                 _container.GridLineBrush = GridLineBrush;
                 _container.AlternatingRowBrush = AlternatingRowBackground;
                 _container.SelectedRowBrush = SelectedRowBackground;
+                _container.SelectionOverridesConditionalStyle = SelectionOverridesConditionalStyle;
                 _container.ShowAlternatingRows = ShowAlternatingRows;
                 _container.EnableColumnVirtualization = EnableColumnVirtualization;
                 _container.ShowNodeCheckBox = AllowCheckBoxSelection;
@@ -1431,6 +2071,8 @@ namespace TreeGrid.Wpf
             if (_groupDropArea != null)
             {
                 _groupDropArea.Height = GroupDropAreaHeight;
+                _groupDropArea.ShowDragPreview = ShowDragPreview;
+                _groupDropArea.DropIndicatorBrush = DropIndicatorBrush;
                 _groupDropArea.Visibility = ShowGroupDropArea ? Visibility.Visible : Visibility.Collapsed;
             }
 
@@ -1453,10 +2095,28 @@ namespace TreeGrid.Wpf
 
         private void OnColumnsChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
+            // Move covers both the drag and a direct Columns.Move by the host.
+            if (e.Action == NotifyCollectionChangedAction.Move)
+            {
+                var moved = e.NewItems != null && e.NewItems.Count > 0
+                    ? e.NewItems[0] as TreeGridColumn
+                    : null;
+
+                RefreshLayout();
+                ColumnReordered?.Invoke(this,
+                    new ColumnReorderedEventArgs(moved, e.OldStartingIndex, e.NewStartingIndex));
+                return;
+            }
+
             if (e.OldItems != null)
             {
                 foreach (TreeGridColumn column in e.OldItems)
+                {
                     column.Host = null;
+
+                    // Do not keep a reference to a column that has left the grid.
+                    _hiddenByGrouping.Remove(column);
+                }
             }
 
             if (e.NewItems != null)
@@ -1528,6 +2188,12 @@ namespace TreeGrid.Wpf
 
             if (_groupController.IsGrouped)
                 ApplyGrouping();
+
+            // A new node tree means new records to observe and fresh state to read.
+            DetachMemberPathObservers();
+            AttachMemberPathObservers();
+            RefreshSelectionFromSource();
+            RefreshCheckStateFromSource();
 
             _container?.ResetRows();
             RefreshLayout();
@@ -1750,12 +2416,122 @@ namespace TreeGrid.Wpf
 
         // ------------------------------------------------------------- selection
 
+        protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
+        {
+            base.OnPreviewMouseLeftButtonDown(e);
+
+            _cellContentPointerHandled = false;
+
+            if (!SelectOnCellContentInteraction)
+                return;
+
+            var cell = FindCellOfInteractiveContent(e.OriginalSource as DependencyObject);
+            if (cell == null)
+                return;
+
+            SelectFromCellContent(cell, Keyboard.Modifiers);
+            _cellContentPointerHandled = true;
+        }
+
+        protected override void OnPreviewGotKeyboardFocus(KeyboardFocusChangedEventArgs e)
+        {
+            base.OnPreviewGotKeyboardFocus(e);
+
+            if (!SelectOnCellContentInteraction)
+                return;
+
+            // Covers tabbing into a control; after a click the row is already selected and this is a no-op.
+            var cell = FindCellOfInteractiveContent(e.NewFocus as DependencyObject);
+            if (cell != null)
+                SelectFromCellContent(cell, ModifierKeys.None);
+        }
+
+        /// <summary>
+        /// The cell hosting <paramref name="source"/> when the source sits inside an interactive
+        /// control of that cell's content (a button, text box, selector, slider or hyperlink), or
+        /// null. Plain content such as a TextBlock is left to the normal click handling.
+        /// </summary>
+        private TreeGridCell FindCellOfInteractiveContent(DependencyObject source)
+        {
+            var isInteractive = false;
+
+            for (var current = source; current != null && !ReferenceEquals(current, this); current = GetParentElement(current))
+            {
+                if (current is TreeGridCell cell)
+                    return isInteractive && cell.Node != null && !cell.Node.IsGroupHeader ? cell : null;
+
+                if (current is ButtonBase || current is TextBoxBase || current is PasswordBox ||
+                    current is Selector || current is RangeBase || current is Hyperlink)
+                {
+                    isInteractive = true;
+                }
+            }
+
+            return null;
+        }
+
+        private static DependencyObject GetParentElement(DependencyObject element)
+        {
+            if (element is Visual || element is System.Windows.Media.Media3D.Visual3D)
+                return VisualTreeHelper.GetParent(element);
+
+            // Content elements (Run, Hyperlink) are not in the visual tree.
+            if (element is FrameworkContentElement contentElement)
+                return contentElement.Parent;
+
+            return element is ContentElement ce ? ContentOperations.GetParent(ce) : null;
+        }
+
+        /// <summary>
+        /// Selects the row of a cell whose content control is being used and makes it the current cell,
+        /// without taking focus from the control.
+        /// </summary>
+        private void SelectFromCellContent(TreeGridCell cell, ModifierKeys modifiers)
+        {
+            if (_container == null)
+                return;
+
+            var node = cell.Node;
+            var rowIndex = node.FlatIndex;
+
+            if (rowIndex < 0 || rowIndex >= _dataSource.View.Count)
+                return;
+
+            var columnIndex = cell.ColumnIndex >= 0 ? cell.ColumnIndex : _selection.CurrentColumnIndex;
+            var column = _layout.ColumnAt(columnIndex);
+
+            // Same rule as a normal click: moving to another cell commits an open editor.
+            if (_editController.IsEditing &&
+                (!ReferenceEquals(node, _editController.EditingNode) ||
+                 !ReferenceEquals(column, _editController.EditingColumn)))
+            {
+                if (!EndEdit(commit: true))
+                    return;
+            }
+
+            var extendsSelection = (modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0;
+
+            if (!extendsSelection && _selection.IsSelected(node))
+                _selection.SetCurrent(node, columnIndex);
+            else
+                _selection.HandlePointerDown(rowIndex, columnIndex, modifiers);
+
+            _container.RefreshRowStates();
+        }
+
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
 
             if (_container == null)
                 return;
+
+            // Already selected in the preview pass; focus stays with the control that was clicked.
+            if (_cellContentPointerHandled)
+            {
+                _cellContentPointerHandled = false;
+                return;
+            }
 
             Focus();
 
@@ -1896,7 +2672,11 @@ namespace TreeGrid.Wpf
                         return;
 
                     case Key.Enter:
-                        if (EndEdit(commit: true))
+                        // Moving down after a bulk fill would immediately replace the
+                        // selection the fill was applied to, so hold position instead.
+                        var fillingSelection = IsBulkModifierHeld();
+
+                        if (EndEdit(commit: true) && !fillingSelection)
                             _selection.HandleKey(Key.Down, ModifierKeys.None);
 
                         e.Handled = true;
@@ -1924,6 +2704,13 @@ namespace TreeGrid.Wpf
             if (AllowEditing && e.Key == Key.F2)
             {
                 BeginEdit();
+                e.Handled = true;
+                return;
+            }
+
+            if (AllowDeleteRows && e.Key == Key.Delete && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                DeleteSelectedRows();
                 e.Handled = true;
                 return;
             }
@@ -2064,6 +2851,32 @@ namespace TreeGrid.Wpf
 
         public void SelectAll() => _selection.SelectAll();
 
+        /// <summary>
+        /// Selects a node programmatically. Pass clearExisting: false to extend the
+        /// current selection, which is what a "select all siblings" style command wants.
+        /// </summary>
+        public void SelectNode(TreeNode node, bool clearExisting = true)
+        {
+            if (node == null)
+                return;
+
+            _selection.Select(node, clearExisting);
+            _container?.RefreshRowStates();
+        }
+
+        /// <summary>Selects by data item, resolving the node currently on screen.</summary>
+        public void SelectItem(object item, bool clearExisting = true) =>
+            SelectNode(ResolveNode(item), clearExisting);
+
+        public void DeselectNode(TreeNode node)
+        {
+            if (node == null)
+                return;
+
+            _selection.Deselect(node);
+            _container?.RefreshRowStates();
+        }
+
         public void ClearSelection()
         {
             _selection.Clear();
@@ -2081,6 +2894,8 @@ namespace TreeGrid.Wpf
             {
                 _syncingSelectedItem = false;
             }
+
+            WriteSelectionToSource(e);
 
             _container?.RefreshRowStates();
             UpdateFooter();
@@ -2128,6 +2943,7 @@ namespace TreeGrid.Wpf
 
         private void OnNodeCheckedInternal(object sender, NodeCheckedEventArgs e)
         {
+            WriteCheckStateToSource(e);
             UpdateFooter();
             NodeChecked?.Invoke(this, e);
         }
@@ -2354,6 +3170,43 @@ namespace TreeGrid.Wpf
 
             _reorderAdorner = new ColumnReorderAdorner(_headerHost, DropIndicatorBrush);
             adornerLayer.Add(_reorderAdorner);
+
+            ShowColumnDragPreview(column);
+        }
+
+        /// <summary>
+        /// Floats a copy of the dragged header cell over the grid. The adorner is on
+        /// the grid rather than the header host so the ghost stays visible when the
+        /// pointer moves up into the group panel.
+        /// </summary>
+        private void ShowColumnDragPreview(TreeGridColumn column)
+        {
+            if (!ShowDragPreview || _headerRow == null)
+                return;
+
+            var cell = _headerRow.GetHeaderCell(_layout.IndexOf(column));
+
+            if (cell == null)
+                return;
+
+            var layer = AdornerLayer.GetAdornerLayer(this);
+
+            if (layer == null)
+                return;
+
+            var cellOrigin = cell.PointToScreen(new Point(0, 0));
+
+            _dragPreview = new DragPreviewAdorner(this, cell, DropIndicatorBrush, DragPreviewOpacity)
+            {
+                // Preserve where inside the header the user grabbed, so the ghost does
+                // not jump to the pointer on the first move.
+                GrabOffset = new Point(
+                    _headerDragOrigin.X - cellOrigin.X,
+                    _headerDragOrigin.Y - cellOrigin.Y)
+            };
+
+            layer.Add(_dragPreview);
+            _dragPreview.UpdatePosition(PointFromScreen(_headerDragOrigin));
         }
 
         private void UpdateColumnDrag(Point screenPoint)
@@ -2362,6 +3215,8 @@ namespace TreeGrid.Wpf
                 return;
 
             // Dropping on the group panel groups by the column instead of moving it.
+            _dragPreview?.UpdatePosition(PointFromScreen(screenPoint));
+
             if (IsOverGroupArea(screenPoint, out var areaPoint))
             {
                 _groupDropIndex = _groupDropArea.GetInsertIndex(areaPoint);
@@ -2374,6 +3229,12 @@ namespace TreeGrid.Wpf
                 _dropIntoGroupArea = allowed;
                 _groupDropArea.IsDropTarget = allowed;
 
+                // Show where it would land among the existing chips.
+                if (allowed)
+                    _groupDropArea.ShowInsertion(_groupDropIndex);
+                else
+                    _groupDropArea.HideInsertion();
+
                 if (_reorderAdorner != null)
                     _reorderAdorner.IndicatorX = -1;
 
@@ -2385,7 +3246,10 @@ namespace TreeGrid.Wpf
                 _dropIntoGroupArea = false;
 
                 if (_groupDropArea != null)
+                {
                     _groupDropArea.IsDropTarget = false;
+                    _groupDropArea.HideInsertion();
+                }
             }
 
             if (_reorderAdorner == null)
@@ -2459,7 +3323,13 @@ namespace TreeGrid.Wpf
                     to = Math.Min(Math.Max(0, to), Columns.Count - 1);
 
                     if (to != from)
-                        Columns.Move(from, to);
+                    {
+                        var reordering = new ColumnReorderingEventArgs(_draggedColumn, from, to);
+                        ColumnReordering?.Invoke(this, reordering);
+
+                        if (!reordering.Cancel)
+                            Columns.Move(from, to);
+                    }
                 }
             }
 
@@ -2472,7 +3342,16 @@ namespace TreeGrid.Wpf
             _groupDropIndex = -1;
 
             if (_groupDropArea != null)
+            {
                 _groupDropArea.IsDropTarget = false;
+                _groupDropArea.HideInsertion();
+            }
+
+            if (_dragPreview != null)
+            {
+                AdornerLayer.GetAdornerLayer(this)?.Remove(_dragPreview);
+                _dragPreview = null;
+            }
 
             if (_reorderAdorner != null && _headerHost != null)
             {
@@ -2642,6 +3521,7 @@ namespace TreeGrid.Wpf
                 ? _filterController.GetDistinctValues(_dataSource.View.RootNodes, column.MappingName, column.FormatValue)
                 : new List<FilterElement>();
 
+            ApplyFilterPopupStyle();
             _filterPopupContent.UseStronglyTypedConditions = true;
             _filterPopupContent.IsAdvancedExpanded = !canUseValueList;
             _filterPopupContent.Initialize(
@@ -2675,7 +3555,7 @@ namespace TreeGrid.Wpf
             var popupWidth = _filterPopupContent.Width;
 
             if (double.IsNaN(popupWidth) || popupWidth <= 0)
-                popupWidth = 270;
+                popupWidth = FilterPopupWidth > 0 ? FilterPopupWidth : 270;
 
             var offset = headerCell.ActualWidth - popupWidth;
 
@@ -2688,6 +3568,49 @@ namespace TreeGrid.Wpf
             return Math.Max(offset, -cellLeft);
         }
 
+        /// <summary>
+        /// Pushes the resolved appearance onto the popup. Applied per opening rather
+        /// than once, so a theme swap or a property change between openings is picked
+        /// up without recreating the popup.
+        /// </summary>
+        private void ApplyFilterPopupStyle()
+        {
+            if (_filterPopupContent == null)
+                return;
+
+            // An explicit Style wins outright; the individual brushes are ignored so
+            // a full retemplate is not fighting per-property assignments.
+            if (FilterPopupStyle != null)
+            {
+                _filterPopupContent.Style = FilterPopupStyle;
+                return;
+            }
+
+            var style = _container?.VisualStyle ?? ResolveVisualStyle();
+
+            _filterPopupContent.Width = style.FilterPopupWidth;
+            _filterPopupContent.ListMaxHeight = style.FilterListMaxHeight;
+
+            _filterPopupContent.AllowResize = AllowFilterPopupResize;
+            _filterPopupContent.MinPopupWidth = MinFilterPopupWidth;
+            _filterPopupContent.MinListHeight = MinFilterListHeight;
+
+            _filterPopupContent.Background = style.FilterPopupBackground;
+            _filterPopupContent.Foreground = style.FilterPopupForeground;
+            _filterPopupContent.PopupBorderBrush = style.FilterPopupBorderBrush;
+            _filterPopupContent.AccentBrush = style.FilterPopupAccentBrush;
+
+            _filterPopupContent.ListBackground = style.FilterListBackground;
+            _filterPopupContent.ListForeground = style.FilterListForeground;
+            _filterPopupContent.ListBorderBrush = style.FilterListBorderBrush;
+            _filterPopupContent.ItemHoverBackground = style.FilterItemHoverBackground;
+            _filterPopupContent.ItemSelectedBackground = style.FilterItemSelectedBackground;
+
+            _filterPopupContent.InputBackground = style.FilterInputBackground;
+            _filterPopupContent.InputForeground = style.FilterInputForeground;
+            _filterPopupContent.InputBorderBrush = style.FilterInputBorderBrush;
+        }
+
         private void EnsureFilterPopup()
         {
             if (_filterPopup != null)
@@ -2698,6 +3621,10 @@ namespace TreeGrid.Wpf
             _filterPopupContent.SortRequested += OnFilterPopupSortRequested;
             _filterPopupContent.CloseRequested += (s, e) => _filterPopup.IsOpen = false;
 
+            // Remember what the user dragged it to, so the next column opens at the
+            // same size instead of snapping back.
+            _filterPopupContent.Resized += OnFilterPopupResized;
+
             _filterPopup = new Popup
             {
                 Child = _filterPopupContent,
@@ -2705,6 +3632,17 @@ namespace TreeGrid.Wpf
                 AllowsTransparency = true,
                 PopupAnimation = PopupAnimation.Fade
             };
+        }
+
+        private void OnFilterPopupResized(object sender, EventArgs e)
+        {
+            if (_filterPopupContent == null)
+                return;
+
+            if (!double.IsNaN(_filterPopupContent.Width) && _filterPopupContent.Width > 0)
+                FilterPopupWidth = _filterPopupContent.Width;
+
+            FilterListMaxHeight = _filterPopupContent.ListMaxHeight;
         }
 
         private void OnFilterPopupApplied(object sender, FilterAppliedEventArgs e)
@@ -2779,12 +3717,22 @@ namespace TreeGrid.Wpf
             var column = _editController.EditingColumn;
             var columnIndex = _layout.IndexOf(column);
 
+            // The value must be read while the editor still exists.
+            var bulkTargets = commit ? ResolveBulkTargets(node, column) : null;
+            var pendingValue = bulkTargets != null
+                ? column.GetEditValue(_editController.EditElement)
+                : null;
+
             var succeeded = _editController.EndEdit(commit);
 
             if (!succeeded)
                 return false;
 
             FindCell(node, columnIndex)?.EndEdit();
+
+            // Only after the edited cell itself committed and validated.
+            if (bulkTargets != null)
+                ApplyBulkValue(column, pendingValue, bulkTargets);
 
             // The committed value changes what the cell displays, and a merge range may
             // have opened or closed as a result.
@@ -2799,6 +3747,633 @@ namespace TreeGrid.Wpf
 
         private void OnCellEndEditInternal(object sender, CellEndEditEventArgs e) =>
             CellEndEdit?.Invoke(this, e);
+
+        /// <summary>
+        /// Rows that should receive the committed value, or null when bulk update does
+        /// not apply. Returning null keeps the normal edit path untouched.
+        /// </summary>
+        /// <summary>True when a commit right now would fan the value across the selection.</summary>
+        private bool IsBulkModifierHeld()
+        {
+            if (!AllowBulkValueChange)
+                return false;
+
+            var required = BulkValueChangeModifiers;
+
+            return required == ModifierKeys.None ||
+                   (Keyboard.Modifiers & required) == required;
+        }
+
+        private List<TreeNode> ResolveBulkTargets(TreeNode source, TreeGridColumn column)
+        {
+            if (!AllowBulkValueChange || source == null || column == null)
+                return null;
+
+            if (!column.SupportsValueCommit || string.IsNullOrEmpty(column.MappingName))
+                return null;
+
+            // ModifierKeys.None means "always"; anything else must be held exactly.
+            if (!IsBulkModifierHeld())
+                return null;
+
+            var targets = new List<TreeNode>();
+
+            for (var i = 0; i < _dataSource.View.Count; i++)
+            {
+                var node = _dataSource.View[i];
+
+                if (ReferenceEquals(node, source) || !node.IsSelected)
+                    continue;
+
+                // Group headers hold no record, and a non-editable row is not a target.
+                if (node.IsGroupHeader || node.Item == null)
+                    continue;
+
+                targets.Add(node);
+            }
+
+            return targets.Count > 0 ? targets : null;
+        }
+
+        /// <summary>Pushes a value across the selection, validating each row independently.</summary>
+        private void ApplyBulkValue(TreeGridColumn column, object newValue, List<TreeNode> targets)
+        {
+            var distinct = CountDistinctValues(column, targets);
+
+            var changing = new BulkValueChangingEventArgs(column, newValue, targets, distinct);
+            BulkValueChanging?.Invoke(this, changing);
+
+            if (changing.Cancel)
+                return;
+
+            if (changing.HasMixedValues && !changing.SuppressConfirmation && ShowBulkValueChangeConfirmation)
+            {
+                var answer = MessageBox.Show(
+                    TreeGridLocalization.GetString("BulkUpdateMixedValues"),
+                    TreeGridLocalization.GetString("BulkUpdateTitle"),
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (answer != MessageBoxResult.Yes)
+                    return;
+            }
+
+            var updated = 0;
+            var rejected = new List<TreeNode>();
+
+            foreach (var node in targets)
+            {
+                if (_editController.TryApplyValue(node, column, newValue, out _))
+                    updated++;
+                else
+                    rejected.Add(node);
+            }
+
+            if (updated > 0)
+            {
+                // A changed value can alter sorting, filtering and grouping keys, so
+                // repaint content rather than just state.
+                _mergeController.Invalidate();
+                _container?.RefreshRowContent();
+            }
+
+            _container?.RefreshRowStates();
+
+            BulkValueChanged?.Invoke(this,
+                new BulkValueChangedEventArgs(column, newValue, updated, rejected));
+        }
+
+        /// <summary>
+        /// Distinct values currently held by the affected cells.
+        /// <para>
+        /// The value being applied is deliberately excluded: the prompt asks whether to
+        /// overwrite cells that disagree with each other, so a selection that is already
+        /// uniform is replaced without interruption even when the new value differs.
+        /// </para>
+        /// </summary>
+        private static int CountDistinctValues(TreeGridColumn column, List<TreeNode> targets)
+        {
+            var seen = new HashSet<object>();
+
+            foreach (var node in targets)
+                seen.Add(PropertyAccessor.GetValue(node.Item, column.MappingName) ?? NullKey);
+
+            return seen.Count;
+        }
+
+        /// <summary>Stands in for null so it can live in a HashSet alongside real values.</summary>
+        private static readonly object NullKey = new object();
+
+        // ================================================================ DELETE
+
+        /// <summary>
+        /// Removes the selected rows. Returns how many records the grid removed from
+        /// the source; zero when cancelled, refused at the prompt, or handled by the host.
+        /// </summary>
+        public int DeleteSelectedRows()
+        {
+            if (!AllowDeleteRows)
+                return 0;
+
+            var nodes = ResolveDeleteTargets();
+
+            if (nodes.Count == 0)
+                return 0;
+
+            var items = new List<object>(nodes.Count);
+
+            foreach (var node in nodes)
+                items.Add(node.Item);
+
+            var args = new RowsDeletingEventArgs(nodes, items)
+            {
+                TotalAffected = CountWithDescendants(nodes)
+            };
+
+            RowsDeleting?.Invoke(this, args);
+
+            if (args.Cancel)
+                return 0;
+
+            if (!args.SuppressConfirmation && ConfirmRowDelete && !ConfirmDelete(args.TotalAffected))
+                return 0;
+
+            // Where the caret should land once the rows are gone.
+            var fallbackIndex = nodes[0].FlatIndex;
+
+            // Expansion is not part of the data, so it would be lost by the reload a
+            // delete forces. Capture it and put it back.
+            var expanded = CaptureExpandedItems();
+
+            var removed = args.HandledByHost ? 0 : RemoveFromSource(nodes);
+
+            _dataSource.Reload();
+            RestoreExpansion(expanded);
+
+            SelectNearest(fallbackIndex);
+
+            _mergeController.Invalidate();
+            _container?.ResetRows();
+            _container?.InvalidateMeasure();
+            UpdateFooter();
+
+            RowsDeleted?.Invoke(this, new RowsDeletedEventArgs(items, removed, args.HandledByHost));
+            return removed;
+        }
+
+        /// <summary>
+        /// Selected record rows, with any row that is already a descendant of another
+        /// selected row dropped - removing the ancestor takes the subtree with it, and
+        /// removing twice would throw or silently miss.
+        /// </summary>
+        private List<TreeNode> ResolveDeleteTargets()
+        {
+            var selected = new List<TreeNode>();
+
+            for (var i = 0; i < _dataSource.View.Count; i++)
+            {
+                var node = _dataSource.View[i];
+
+                if (node.IsSelected && !node.IsGroupHeader && node.Item != null)
+                    selected.Add(node);
+            }
+
+            if (selected.Count == 0 && _selection.CurrentNode != null &&
+                !_selection.CurrentNode.IsGroupHeader && _selection.CurrentNode.Item != null)
+                selected.Add(_selection.CurrentNode);
+
+            var result = new List<TreeNode>(selected.Count);
+
+            foreach (var node in selected)
+            {
+                var covered = false;
+
+                foreach (var other in selected)
+                {
+                    if (!ReferenceEquals(node, other) && node.IsDescendantOf(other))
+                    {
+                        covered = true;
+                        break;
+                    }
+                }
+
+                if (!covered)
+                    result.Add(node);
+            }
+
+            return result;
+        }
+
+        private static int CountWithDescendants(IReadOnlyList<TreeNode> nodes)
+        {
+            var total = 0;
+
+            void Visit(TreeNode node)
+            {
+                if (!node.IsGroupHeader)
+                    total++;
+
+                for (var i = 0; i < node.ChildNodes.Count; i++)
+                    Visit(node.ChildNodes[i]);
+            }
+
+            for (var i = 0; i < nodes.Count; i++)
+                Visit(nodes[i]);
+
+            return total;
+        }
+
+        private bool ConfirmDelete(int count)
+        {
+            var text = string.Format(
+                TreeGridLocalization.GetString("DeleteRowsConfirm"),
+                count,
+                count == 1
+                    ? TreeGridLocalization.GetString("RowSingular")
+                    : TreeGridLocalization.GetString("RowPlural"));
+
+            return MessageBox.Show(text, TreeGridLocalization.GetString("DeleteRowsTitle"),
+                MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+        }
+
+        /// <summary>
+        /// Removes records from the collections they actually live in: a child
+        /// collection for a nested item, the ItemsSource for a root or for a
+        /// self-relational row. Collections that are not writable lists are skipped
+        /// and reported through the returned count.
+        /// </summary>
+        private int RemoveFromSource(IReadOnlyList<TreeNode> nodes)
+        {
+            var removed = 0;
+            var rootList = ItemsSource as IList;
+
+            foreach (var node in nodes)
+            {
+                // While grouped, the displayed node sits under a group header; the real
+                // parent is on the original tree the data source still holds.
+                var sourceNode = _dataSource.GetNode(node.Item) ?? node;
+                var parent = sourceNode.ParentNode;
+
+                IList target = null;
+
+                if (parent?.Item != null && !string.IsNullOrEmpty(ChildPropertyName))
+                    target = PropertyAccessor.GetValue(parent.Item, ChildPropertyName) as IList;
+
+                target ??= rootList;
+
+                if (target == null || target.IsReadOnly || !target.Contains(node.Item))
+                    continue;
+
+                target.Remove(node.Item);
+                removed++;
+            }
+
+            return removed;
+        }
+
+        private HashSet<object> CaptureExpandedItems()
+        {
+            var expanded = new HashSet<object>();
+
+            void Visit(TreeNode node)
+            {
+                if (node.IsExpanded && node.Item != null)
+                    expanded.Add(node.Item);
+
+                for (var i = 0; i < node.ChildNodes.Count; i++)
+                    Visit(node.ChildNodes[i]);
+            }
+
+            foreach (var root in _dataSource.View.RootNodes)
+                Visit(root);
+
+            return expanded;
+        }
+
+        private void RestoreExpansion(HashSet<object> expanded)
+        {
+            if (expanded == null || expanded.Count == 0)
+                return;
+
+            void Visit(TreeNode node)
+            {
+                // Only nodes whose children are present; a lazy node must stay closed
+                // or it would look expanded with nothing under it.
+                if (node.Item != null && node.IsChildNodesPopulated &&
+                    node.ChildNodes.Count > 0 && expanded.Contains(node.Item))
+                    node.IsExpanded = true;
+
+                for (var i = 0; i < node.ChildNodes.Count; i++)
+                    Visit(node.ChildNodes[i]);
+            }
+
+            foreach (var root in _dataSource.View.RootNodes)
+                Visit(root);
+
+            _dataSource.View.Rebuild();
+        }
+
+        private void SelectNearest(int flatIndex)
+        {
+            var view = _dataSource.View;
+
+            if (view.Count == 0)
+            {
+                _selection.Clear();
+                return;
+            }
+
+            var index = Math.Min(Math.Max(0, flatIndex), view.Count - 1);
+            _selection.Select(view[index]);
+            _container?.ScrollIntoView(index);
+        }
+
+        // ==================================================== MEMBER PATH SYNC
+
+        private static void OnMemberPathChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var grid = (TreeGridControl)d;
+
+            grid.DetachMemberPathObservers();
+            grid.AttachMemberPathObservers();
+            grid.RefreshSelectionFromSource();
+            grid.RefreshCheckStateFromSource();
+        }
+
+        /// <summary>
+        /// Applies <see cref="SelectedMemberPath"/> from the records to the grid.
+        /// Call after changing the property on many records at once.
+        /// </summary>
+        public void RefreshSelectionFromSource()
+        {
+            if (string.IsNullOrEmpty(SelectedMemberPath))
+                return;
+
+            _syncingMemberPath = true;
+
+            try
+            {
+                foreach (var node in EnumerateRecordNodes())
+                {
+                    var wanted = ReadBoolean(node.Item, SelectedMemberPath) == true;
+
+                    if (wanted == node.IsSelected)
+                        continue;
+
+                    if (wanted)
+                        _selection.Select(node, clearExisting: false);
+                    else
+                        _selection.Deselect(node);
+                }
+            }
+            finally
+            {
+                _syncingMemberPath = false;
+            }
+
+            _container?.RefreshRowStates();
+            UpdateFooter();
+        }
+
+        /// <summary>Applies <see cref="CheckedMemberPath"/> from the records to the grid.</summary>
+        public void RefreshCheckStateFromSource()
+        {
+            if (string.IsNullOrEmpty(CheckedMemberPath))
+                return;
+
+            _syncingMemberPath = true;
+
+            try
+            {
+                foreach (var node in EnumerateRecordNodes())
+                {
+                    var wanted = ReadBoolean(node.Item, CheckedMemberPath);
+
+                    if (!Equals(wanted, node.IsChecked))
+                        _checkState.SetState(node, wanted);
+                }
+            }
+            finally
+            {
+                _syncingMemberPath = false;
+            }
+
+            _container?.RefreshRowStates();
+            UpdateFooter();
+        }
+
+        /// <summary>Writes selection back to the records after the grid changed it.</summary>
+        private void WriteSelectionToSource(GridSelectionChangedEventArgs e)
+        {
+            if (_syncingMemberPath || string.IsNullOrEmpty(SelectedMemberPath))
+                return;
+
+            _syncingMemberPath = true;
+
+            try
+            {
+                foreach (var item in e.RemovedItems)
+                    WriteBoolean(item, SelectedMemberPath, false);
+
+                foreach (var item in e.AddedItems)
+                    WriteBoolean(item, SelectedMemberPath, true);
+            }
+            finally
+            {
+                _syncingMemberPath = false;
+            }
+        }
+
+        private void WriteCheckStateToSource(NodeCheckedEventArgs e)
+        {
+            if (_syncingMemberPath || string.IsNullOrEmpty(CheckedMemberPath) || e.Node?.Item == null)
+                return;
+
+            _syncingMemberPath = true;
+
+            try
+            {
+                WriteBoolean(e.Node.Item, CheckedMemberPath, e.NewState);
+            }
+            finally
+            {
+                _syncingMemberPath = false;
+            }
+        }
+
+        private static bool? ReadBoolean(object item, string path)
+        {
+            var value = PropertyAccessor.GetValue(item, path);
+
+            switch (value)
+            {
+                case null:
+                    return null;
+                case bool b:
+                    return b;
+                default:
+                    return bool.TryParse(value.ToString(), out var parsed) ? parsed : (bool?)null;
+            }
+        }
+
+        /// <summary>
+        /// Writes through the compiled accessor, which handles bool and bool? alike.
+        /// A read-only or missing property is skipped rather than throwing: the mapping
+        /// is a convenience, not a contract the record has to satisfy.
+        /// </summary>
+        private static void WriteBoolean(object item, string path, bool? value)
+        {
+            if (item == null)
+                return;
+
+            var info = PropertyAccessor.GetPropertyInfo(item.GetType(), path);
+
+            if (info == null || !info.CanWrite)
+                return;
+
+            var nullable = Nullable.GetUnderlyingType(info.PropertyType) != null;
+
+            try
+            {
+                PropertyAccessor.SetValue(item, path, nullable ? value : (object)(value == true));
+            }
+            catch (Exception)
+            {
+                // A setter that rejects the value is the record's business, not ours.
+            }
+        }
+
+        private IEnumerable<TreeNode> EnumerateRecordNodes()
+        {
+            var roots = _ungroupedRoots ?? (IReadOnlyList<TreeNode>)_dataSource.View.RootNodes;
+            var stack = new Stack<TreeNode>();
+
+            for (var i = roots.Count - 1; i >= 0; i--)
+                stack.Push(roots[i]);
+
+            while (stack.Count > 0)
+            {
+                var node = stack.Pop();
+
+                for (var i = node.ChildNodes.Count - 1; i >= 0; i--)
+                    stack.Push(node.ChildNodes[i]);
+
+                if (!node.IsGroupHeader && node.Item != null)
+                    yield return node;
+            }
+        }
+
+        // ------------------------------------------------------- live observation
+
+        private void AttachMemberPathObservers()
+        {
+            if (!ObserveMemberPathChanges ||
+                (string.IsNullOrEmpty(SelectedMemberPath) && string.IsNullOrEmpty(CheckedMemberPath)))
+                return;
+
+            foreach (var node in EnumerateRecordNodes())
+            {
+                if (node.Item is INotifyPropertyChanged observable && _observedItems.Add(observable))
+                    observable.PropertyChanged += OnObservedItemPropertyChanged;
+            }
+        }
+
+        private void DetachMemberPathObservers()
+        {
+            foreach (var observable in _observedItems)
+                observable.PropertyChanged -= OnObservedItemPropertyChanged;
+
+            _observedItems.Clear();
+        }
+
+        private void OnObservedItemPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (_syncingMemberPath)
+                return;
+
+            var matchesSelection = string.IsNullOrEmpty(e.PropertyName) ||
+                                   e.PropertyName == SelectedMemberPath;
+
+            var matchesChecked = string.IsNullOrEmpty(e.PropertyName) ||
+                                 e.PropertyName == CheckedMemberPath;
+
+            if (!matchesSelection && !matchesChecked)
+                return;
+
+            // PropertyChanged can arrive off the UI thread.
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnObservedItemPropertyChanged(sender, e)));
+                return;
+            }
+
+            if (matchesSelection)
+                ApplySelectionFromItem(sender);
+
+            if (matchesChecked)
+                ApplyCheckStateFromItem(sender);
+        }
+
+        private void ApplySelectionFromItem(object item)
+        {
+            if (string.IsNullOrEmpty(SelectedMemberPath))
+                return;
+
+            var node = ResolveNode(item);
+
+            if (node == null)
+                return;
+
+            var wanted = ReadBoolean(item, SelectedMemberPath) == true;
+
+            if (wanted == node.IsSelected)
+                return;
+
+            _syncingMemberPath = true;
+
+            try
+            {
+                if (wanted)
+                    _selection.Select(node, clearExisting: false);
+                else
+                    _selection.Deselect(node);
+            }
+            finally
+            {
+                _syncingMemberPath = false;
+            }
+
+            _container?.RefreshRowStates();
+        }
+
+        private void ApplyCheckStateFromItem(object item)
+        {
+            if (string.IsNullOrEmpty(CheckedMemberPath))
+                return;
+
+            var node = ResolveNode(item);
+
+            if (node == null)
+                return;
+
+            var wanted = ReadBoolean(item, CheckedMemberPath);
+
+            if (Equals(wanted, node.IsChecked))
+                return;
+
+            _syncingMemberPath = true;
+
+            try
+            {
+                _checkState.SetState(node, wanted);
+            }
+            finally
+            {
+                _syncingMemberPath = false;
+            }
+
+            _container?.RefreshRowStates();
+        }
 
         private TreeGridCell FindCell(TreeNode node, int columnIndex)
         {
@@ -2927,21 +4502,211 @@ namespace TreeGrid.Wpf
             if (!_dragController.IsDragging)
                 return;
 
-            var changed = _dragController.Complete(_dataSource.View.MutableRoots);
+            // When the grid is going to rewrite the source and rebuild from it, the
+            // node move is skipped: applying the same relocation twice would leave the
+            // tree and the data disagreeing.
+            var syncSource = UpdateSourceOnRowDrop && CanUpdateSourceOnDrop;
+
+            var outcome = _dragController.Complete(_dataSource.View.MutableRoots, moveNodes: !syncSource);
 
             RemoveDropAdorner();
             ReleaseMouseCapture();
 
-            if (!changed)
+            if (!outcome.IsValid)
                 return;
 
-            _mergeController.Invalidate();
-            _dataSource.View.Rebuild();
+            var items = new List<object>(outcome.Nodes.Count);
+
+            foreach (var node in outcome.Nodes)
+            {
+                if (node.Item != null)
+                    items.Add(node.Item);
+            }
+
+            var parentItem = ResolveDropParentItem(outcome);
+            var sourceUpdated = false;
+
+            if (outcome.HandledByHost)
+            {
+                ReloadPreservingExpansion();
+            }
+            else if (syncSource)
+            {
+                sourceUpdated = UpdateSourceForDrop(outcome);
+
+                if (sourceUpdated)
+                    ReloadPreservingExpansion();
+            }
+            else if (outcome.NodesMoved)
+            {
+                _mergeController.Invalidate();
+                _dataSource.View.Rebuild();
+            }
+
             _container?.ResetRows();
             _container?.InvalidateMeasure();
+            UpdateFooter();
+
+            RaiseRowDropCompleted(outcome, items, parentItem, sourceUpdated);
         }
 
-        private void CancelRowDrag()
+        /// <summary>
+        /// True when the grid knows how the hierarchy is expressed in the data: a child
+        /// collection, or a parent key. Unbound sources express it neither way.
+        /// </summary>
+        private bool CanUpdateSourceOnDrop =>
+            _dataSource.BindingMode == TreeGridBindingMode.Hierarchical && !string.IsNullOrEmpty(ChildPropertyName) ||
+            _dataSource.BindingMode == TreeGridBindingMode.SelfRelational &&
+                !string.IsNullOrEmpty(ParentIdPropertyName) && !string.IsNullOrEmpty(IdPropertyName);
+
+        /// <summary>The record the rows end up under, or null when they become roots.</summary>
+        private object ResolveDropParentItem(RowDropOutcome outcome)
+        {
+            var target = _dataSource.GetNode(outcome.TargetNode.Item) ?? outcome.TargetNode;
+
+            return outcome.Position == RowDropPosition.Into
+                ? target.Item
+                : target.ParentNode?.Item;
+        }
+
+        /// <summary>
+        /// Moves the records so the data matches what the user sees. Hierarchical
+        /// sources move the item between child collections; self-relational sources get
+        /// their parent key rewritten.
+        /// </summary>
+        private bool UpdateSourceForDrop(RowDropOutcome outcome)
+        {
+            var parentItem = ResolveDropParentItem(outcome);
+            var changed = false;
+
+            // One rebuild at the end, not one per Remove and Insert.
+            _dataSource.BeginSourceUpdate();
+
+            try
+            {
+                foreach (var node in outcome.Nodes)
+                {
+                    if (node.Item == null || ReferenceEquals(node.Item, parentItem))
+                        continue;
+
+                    changed |= _dataSource.BindingMode == TreeGridBindingMode.SelfRelational
+                        ? UpdateParentKey(node.Item, parentItem)
+                        : MoveBetweenChildCollections(node, parentItem, outcome);
+                }
+            }
+            finally
+            {
+                _dataSource.EndSourceUpdate();
+            }
+
+            return changed;
+        }
+
+        private bool UpdateParentKey(object item, object parentItem)
+        {
+            var parentKey = parentItem == null
+                ? SelfRelationRootValue
+                : PropertyAccessor.GetValue(parentItem, IdPropertyName);
+
+            var current = PropertyAccessor.GetValue(item, ParentIdPropertyName);
+
+            if (Equals(current, parentKey))
+                return false;
+
+            PropertyAccessor.SetValue(item, ParentIdPropertyName, parentKey);
+            return true;
+        }
+
+        private bool MoveBetweenChildCollections(TreeNode node, object parentItem, RowDropOutcome outcome)
+        {
+            var item = node.Item;
+            var sourceNode = _dataSource.GetNode(item) ?? node;
+
+            var oldList = GetChildCollection(sourceNode.ParentNode?.Item);
+            var newList = GetChildCollection(parentItem);
+
+            if (newList == null || newList.IsReadOnly)
+                return false;
+
+            // Remove before computing the insert index: within one list, removing
+            // first shifts everything after it.
+            if (oldList != null && !oldList.IsReadOnly && oldList.Contains(item))
+                oldList.Remove(item);
+
+            var index = ResolveInsertIndex(newList, outcome);
+
+            if (index < 0 || index > newList.Count)
+                newList.Add(item);
+            else
+                newList.Insert(index, item);
+
+            return true;
+        }
+
+        /// <summary>Child collection for a record, or the root collection for null.</summary>
+        private IList GetChildCollection(object parentItem)
+        {
+            if (parentItem == null)
+                return ItemsSource as IList;
+
+            if (string.IsNullOrEmpty(ChildPropertyName))
+                return null;
+
+            return PropertyAccessor.GetValue(parentItem, ChildPropertyName) as IList;
+        }
+
+        private int ResolveInsertIndex(IList list, RowDropOutcome outcome)
+        {
+            if (outcome.Position == RowDropPosition.Into)
+                return list.Count;
+
+            var targetItem = outcome.TargetNode.Item;
+            var index = targetItem == null ? -1 : list.IndexOf(targetItem);
+
+            if (index < 0)
+                return list.Count;
+
+            return outcome.Position == RowDropPosition.Below ? index + 1 : index;
+        }
+
+        /// <summary>
+        /// Rebuilds from the source without collapsing the tree. A reload is the only
+        /// way to guarantee the nodes match the rewritten data, but expansion is view
+        /// state and would otherwise be thrown away.
+        /// </summary>
+        private void ReloadPreservingExpansion()
+        {
+            var expanded = CaptureExpandedItems();
+
+            _dataSource.Reload();
+            RestoreExpansion(expanded);
+
+            _mergeController.Invalidate();
+        }
+
+        private void RaiseRowDropCompleted(RowDropOutcome outcome, List<object> items,
+            object parentItem, bool sourceUpdated)
+        {
+            if (RowDropCompleted == null)
+                return;
+
+            // Resolve against the rebuilt tree: the dragged nodes may no longer exist.
+            var nodes = new List<TreeNode>(items.Count);
+
+            foreach (var item in items)
+            {
+                var node = ResolveNode(item);
+
+                if (node != null)
+                    nodes.Add(node);
+            }
+
+            RowDropCompleted(this, new RowDropCompletedEventArgs(
+                nodes, items, ResolveNode(parentItem), outcome.Position,
+                outcome.HandledByHost, sourceUpdated));
+        }
+
+        private void CancelRowDrag()        
         {
             _dragController.Cancel();
             RemoveDropAdorner();
@@ -3151,38 +4916,57 @@ namespace TreeGrid.Wpf
 
             var node = _selection.CurrentNode;
 
+            // A group header has no record to paste into; start at the next real row.
+            if (node != null && node.IsGroupHeader)
+                node = NextRecordNode(node.FlatIndex);
+
             if (node == null)
                 return 0;
 
-            var written = _clipboard.Paste(node, _selection.CurrentColumnIndex, _dataSource.View,
-                _layout.VisibleColumns, WritePastedCell);
+            var result = _clipboard.Paste(node, _selection.CurrentColumnIndex, _dataSource.View,
+                _layout.VisibleColumns, WritePastedCell, AllowExcelPaste);
 
-            if (written > 0)
+            if (result.HasChanges)
             {
+                // Pasted values can change sort, filter and group keys.
                 _mergeController.Invalidate();
                 _container?.RefreshRowContent();
                 _container?.RefreshRowStates();
+                UpdateFooter();
             }
 
-            return written;
+            if (result.UpdatedCells > 0 || result.RejectedCells > 0 || result.TruncatedRows > 0)
+                PasteCompleted?.Invoke(this, result);
+
+            return result.UpdatedCells;
+        }
+
+        private TreeNode NextRecordNode(int fromIndex)
+        {
+            for (var i = Math.Max(0, fromIndex); i < _dataSource.View.Count; i++)
+            {
+                var candidate = _dataSource.View[i];
+
+                if (!candidate.IsGroupHeader && candidate.Item != null)
+                    return candidate;
+            }
+
+            return null;
         }
 
         /// <summary>
         /// Pasted values go through the same coercion and validation as typed edits, so
         /// a bad paste reports errors instead of corrupting the model.
         /// </summary>
+        /// <summary>
+        /// Pasted cells take the same route as typed and bulk edits: coercion, the
+        /// CellValidating event, then post-write validation with rollback. A cell the
+        /// model refuses is counted as rejected and leaves the rest of the block intact.
+        /// </summary>
         private bool WritePastedCell(TreeNode node, TreeGridColumn column, string text)
         {
-            if (!CellValidator.TryCoerce(node.Item, column.MappingName, text, out var coerced, out _))
-                return false;
-
-            var result = CellValidator.ValidateCandidate(node.Item, column.MappingName, coerced);
-
-            if (!result.IsValid)
-                return false;
-
-            PropertyAccessor.SetValue(node.Item, column.MappingName, coerced);
-            return true;
+            var value = string.IsNullOrEmpty(text) ? null : (object)text;
+            return _editController.TryApplyValue(node, column, value, out _);
         }
 
         private List<TreeNode> GetSelectedNodesInViewOrder()
@@ -3377,6 +5161,7 @@ namespace TreeGrid.Wpf
                 return;
 
             _groupDropArea?.Refresh();
+            SyncGroupedColumnVisibility();
 
             if (!_groupController.IsGrouped)
             {
@@ -3419,6 +5204,10 @@ namespace TreeGrid.Wpf
 
             _mergeController.Invalidate();
             _dataSource.View.Rebuild();
+
+            // The visible column set may have changed, so geometry has to be recomputed
+            // rather than only repainting rows.
+            RefreshLayout();
 
             _container?.ResetRows();
             _container?.InvalidateMeasure();

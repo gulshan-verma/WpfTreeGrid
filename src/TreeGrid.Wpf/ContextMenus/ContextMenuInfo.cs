@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using TreeGrid.Wpf.Columns;
@@ -90,6 +91,41 @@ namespace TreeGrid.Wpf.ContextMenus
     /// </summary>
     public static class DefaultContextMenus
     {
+        /// <summary>
+        /// Appends host-supplied items to a stock menu.
+        /// <para>
+        /// An item can only have one logical parent, and the stock menus are rebuilt on
+        /// every right-click, so each item is detached from the previous menu before
+        /// being added again. Without that, the second right-click throws.
+        /// </para>
+        /// </summary>
+        private static void AppendCustomItems(ContextMenu menu, IEnumerable<FrameworkElement> items)
+        {
+            if (items == null)
+                return;
+
+            var added = false;
+
+            foreach (var item in items)
+            {
+                if (item == null)
+                    continue;
+
+                if (LogicalTreeHelper.GetParent(item) is ItemsControl previous)
+                    previous.Items.Remove(item);
+
+                if (!added)
+                {
+                    if (menu.Items.Count > 0)
+                        menu.Items.Add(new Separator());
+
+                    added = true;
+                }
+
+                menu.Items.Add(item);
+            }
+        }
+
         public static ContextMenu BuildHeaderMenu(TreeGridControl grid, TreeGridColumn column)
         {
             var menu = new ContextMenu();
@@ -117,6 +153,23 @@ namespace TreeGrid.Wpf.ContextMenus
                 menu.Items.Add(CreateItem(TreeGridLocalization.GetString("ClearAllFilters"),
                     grid.ClearFilters));
 
+                menu.Items.Add(new Separator());
+            }
+
+            if (grid.AllowGrouping)
+            {
+                // Toggles the panel without touching the grouping itself, so any
+                // active grouping survives hiding and showing the box.
+                var groupBox = new MenuItem
+                {
+                    Header = TreeGridLocalization.GetString("GroupByBox"),
+                    IsCheckable = true,
+                    IsChecked = grid.ShowGroupDropArea,
+                    StaysOpenOnClick = false
+                };
+
+                groupBox.Click += (s, e) => grid.ShowGroupDropArea = groupBox.IsChecked;
+                menu.Items.Add(groupBox);
                 menu.Items.Add(new Separator());
             }
 
@@ -164,6 +217,15 @@ namespace TreeGrid.Wpf.ContextMenus
                 menu.Items.Add(new Separator());
             }
 
+            // Hierarchy commands: columns do not expand, nodes do.
+            menu.Items.Add(CreateItem(TreeGridLocalization.GetString("ExpandAll"),
+                () => grid.ExpandAll()));
+
+            menu.Items.Add(CreateItem(TreeGridLocalization.GetString("CollapseAll"),
+                grid.CollapseAll));
+
+            menu.Items.Add(new Separator());
+
             menu.Items.Add(CreateItem(TreeGridLocalization.GetString("AutoFit"),
                 () => grid.AutoFitColumn(column)));
 
@@ -183,8 +245,13 @@ namespace TreeGrid.Wpf.ContextMenus
                     () => grid.FrozenColumnCount = 0));
             }
 
-            menu.Items.Add(CreateItem(TreeGridLocalization.GetString("HideColumn"),
-                () => column.IsHidden = true));
+            if (grid.AllowHidingColumns)
+            {
+                menu.Items.Add(CreateItem(TreeGridLocalization.GetString("HideColumn"),
+                    () => column.IsHidden = true));
+            }
+
+            AppendCustomItems(menu, grid.HeaderContextMenuItems);
 
             return menu;
         }
@@ -212,6 +279,8 @@ namespace TreeGrid.Wpf.ContextMenus
                     () => _ = grid.ToggleNodeAsync(node)));
             }
 
+            AppendCustomItems(menu, grid.RecordContextMenuItems);
+
             return menu;
         }
 
@@ -224,6 +293,8 @@ namespace TreeGrid.Wpf.ContextMenus
 
             menu.Items.Add(CreateItem(TreeGridLocalization.GetString("CollapseAll"),
                 grid.CollapseAll));
+
+            AppendCustomItems(menu, grid.ExpanderContextMenuItems);
 
             return menu;
         }

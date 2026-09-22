@@ -336,6 +336,35 @@ grid.AutoFitColumns();
 Drag the header gripper to resize, the header itself to reorder;
 `AllowColumnResizing` and `AllowColumnReordering` gate both.
 
+```csharp
+grid.ColumnReordering += (s, e) => e.Cancel = e.Column.MappingName == "Id";
+grid.ColumnReordered += (s, e) => Log($"{e.Column.HeaderText}: {e.OldIndex} -> {e.NewIndex}");
+```
+
+`ColumnReordering` is raised by the drag only and is cancellable. `ColumnReordered`
+fires for both the drag and a direct `Columns.Move`, so it cannot be bypassed in code.
+
+The header context menu offers "Hide this column"; `AllowHidingColumns="False"` removes
+it, for grids whose visible columns are managed elsewhere. `IsHidden` still works in code.
+
+### Drag feedback
+
+Dragging a header floats a translucent copy of it under the pointer, alongside the
+drop line. The ghost keeps the grab offset, so it does not jump to the cursor on the
+first move. Group chips get the same treatment inside the Group By Box, and dragging
+a header over the panel shows where it would land among the existing chips.
+
+| Property | Default |
+|---|---|
+| `ShowDragPreview` | `true` — set false for the plain drop-line behaviour |
+| `DragPreviewOpacity` | `0.7` |
+| `DropIndicatorBrush` | Accent for the ghost outline and drop line |
+
+The ghost is a `VisualBrush` of the live element rather than a bitmap, so it costs
+nothing to build and always matches the current theme. The adorner lives on the grid
+rather than the header, so the ghost stays visible when the pointer moves up into the
+grouping panel.
+
 ---
 
 ## Footer
@@ -385,7 +414,33 @@ Tri-state, cascading down the subtree and rolling up to ancestors. A parent chec
 before its children have loaded passes its state down when they arrive.
 
 `SelectedItem`, `SelectedItems`, `CheckedItems`, `CurrentCell`, `SelectAll()`,
-`ClearSelection()`.
+`ClearSelection()`, `SelectNode()`, `SelectItem()`, `DeselectNode()`.
+
+### Mapping selection onto your entity
+
+```xml
+<tg:TreeGridControl SelectedMemberPath="IsSelected"
+                    CheckedMemberPath="IsChecked"
+                    ObserveMemberPathChanges="True" />
+```
+
+Selecting a row sets the mapped property true, deselecting sets it false, and the
+value is read back when the source loads so saved state is honoured. The checkbox
+mapping accepts `bool` or `bool?` — a nullable property receives the indeterminate
+state, a plain `bool` receives false for it.
+
+`ObserveMemberPathChanges` makes it live in both directions by subscribing to
+`PropertyChanged` on every record. It is **off by default** because that subscription
+is a real cost on a large source. With it off the mapping still writes grid changes
+out to your entities; to pull a bulk change the other way, call:
+
+```csharp
+grid.RefreshSelectionFromSource();
+grid.RefreshCheckStateFromSource();
+```
+
+A missing or read-only property is skipped rather than throwing, and a re-entrancy
+guard stops the write-out and read-back from chasing each other.
 
 ---
 
@@ -418,6 +473,7 @@ grid.ClearGrouping();
 | Click a chip | Flips that level's sort direction |
 | Click the chip's × | Removes that grouping level |
 | Right-click a header | Group, ungroup, move a level, expand/collapse all groups, clear grouping |
+| Header menu | Also carries Expand all / Collapse all for the row hierarchy |
 
 The header-drag gesture is the same one used for column reordering — the grid routes
 it to the panel when the pointer is over it, so there is no separate drag mode to
@@ -431,6 +487,16 @@ recycled, removes that whole class of failure.
 
 Grouping is also on the header context menu (`ShowDefaultContextMenus="True"`), which
 is often quicker than dragging.
+
+### Grouped columns leave the grid
+
+A column that is grouped is hidden from the grid, because its value already appears on
+every group header — repeating it in a column is noise. It returns to its original
+position when it leaves the grouping.
+
+The column's own `IsHidden` is remembered before the grid takes it over, so a column
+you had already hidden does not reappear when ungrouped. Set
+`HideGroupedColumns="False"` to keep grouped columns visible.
 
 ### Grouping replaces the hierarchy
 
@@ -463,6 +529,7 @@ grid.QueryGroupCaption += (s, e) =>
 | `GroupChipDragStarting` | Chip drag begins; cancel to pin that level |
 | `QueryGroupCaption` | Customise header text |
 | `GroupDropAreaHeight` | Panel height |
+| `HideGroupedColumns` | Hide a column while it is grouped. Default true |
 
 ### Grouping events
 
@@ -555,6 +622,91 @@ Triggers: `None`, `OnTap`, `OnDoubleTap`, `OnKeyPress`, plus F2 always. Enter co
 and moves down, Tab traverses editable cells across row boundaries, Escape cancels,
 clicking away commits — and is blocked if validation refuses.
 
+### Bulk value change
+
+Applies a committed value to every selected row in the same column. Off by default —
+when off, the edit path is byte-for-byte the behaviour it had before.
+
+```xml
+<tg:TreeGridControl AllowEditing="True"
+                    AllowBulkValueChange="True"
+                    BulkValueChangeModifiers="Control"
+                    ShowBulkValueChangeConfirmation="True" />
+```
+
+Select several rows, edit one cell, then commit with **Ctrl+Enter**. The value fills
+the rest of the column across the selection, and the selection is kept rather than
+advancing a row.
+
+| Property | Purpose |
+|---|---|
+| `AllowBulkValueChange` | Master switch, default false |
+| `BulkValueChangeModifiers` | Keys held at commit. Default `Control`; `None` applies on every commit |
+| `ShowBulkValueChangeConfirmation` | Prompt when the affected cells disagree |
+
+When the affected cells hold more than one distinct value, the grid asks before
+overwriting:
+
+> Various values were found in the selected cells. Do you want to update all selected
+> cells to this value?
+
+A selection that is already uniform is filled without interruption — the prompt is
+about overwriting cells that disagree with each other, not about the value changing.
+
+```csharp
+grid.BulkValueChanging += (s, e) =>
+{
+    if (e.Column.MappingName == "Salary" && e.Nodes.Count > 50)
+        e.Cancel = true;               // apply to the edited cell only
+
+    e.SuppressConfirmation = true;     // handled the prompt myself
+};
+
+grid.BulkValueChanged += (s, e) =>
+    Log($"{e.UpdatedCount} updated, {e.RejectedNodes.Count} rejected");
+```
+
+Every target row goes through the same coercion, `CellValidating` event and post-write
+validation as a typed edit, and `IEditableObject` wraps each row, so a row that fails
+validation rolls back and is reported in `RejectedNodes` without affecting the rest of
+the batch. Group headers and read-only columns are never targets.
+
+### Deleting rows
+
+```xml
+<tg:TreeGridControl AllowDeleteRows="True" ConfirmRowDelete="True" />
+```
+
+Off by default, so <kbd>Del</kbd> keeps its existing meaning until you opt in. It is
+ignored while a cell editor is open, where the key belongs to the editor.
+
+```csharp
+grid.RowsDeleting += (s, e) =>
+{
+    if (e.Items.OfType<Employee>().Any(x => x.IsLocked)) { e.Cancel = true; return; }
+
+    repository.Delete(e.Items);   // remove them yourself...
+    e.HandledByHost = true;       // ...and the grid just reloads
+};
+
+grid.RowsDeleted += (s, e) => Log($"{e.RemovedCount} removed");
+```
+
+Left to itself the grid removes each record from the collection it actually lives in:
+a child collection for a nested item, `ItemsSource` for a root or a self-relational
+row. Read-only collections are skipped and reported in `RemovedCount`.
+
+Three details:
+
+- **Selecting a parent and its child deletes once.** A row already covered by a
+  selected ancestor is dropped from the target list; removing the ancestor takes the
+  subtree with it, and removing twice would throw or silently miss.
+- **`TotalAffected`** on the event counts descendants, so a confirmation prompt says
+  what will really go.
+- **Expansion state is preserved.** A delete forces a reload, which would otherwise
+  collapse the tree, so expanded nodes are captured and restored. Lazily loaded nodes
+  stay closed rather than reopening empty.
+
 ### Four validation sources
 
 | Source | When |
@@ -609,17 +761,36 @@ Drop above, below, or *into* a row, chosen by pointer position within the row. T
 indicator is indented to show the intended parent. A node cannot be dropped into its
 own subtree. Children can be promoted to roots and roots demoted to children.
 
-**The grid moves nodes, not your data.** A self-relational source needs a parent-key
-rewrite; a hierarchical one needs items moved between child collections. The grid
-cannot guess which:
+**The data is kept in step with the visuals.** With `UpdateSourceOnRowDrop` (default
+true) the grid moves the record into the new parent's `ChildPropertyName` collection
+and out of the old one, or rewrites `ParentIdPropertyName` for a self-relational
+source. Dropping at root level uses `ItemsSource` as the collection.
+
+The insert position matches where the row landed — `Into` appends to the new parent,
+`Above` and `Below` insert relative to the target. Unbound load-on-demand sources
+express the hierarchy neither way, so there the grid only moves nodes.
 
 ```csharp
+// Take over completely; the grid then only reloads.
 grid.RowDropped += (s, e) =>
 {
     RelocateInMyModel(e.Nodes, e.TargetNode, e.Position);
-    e.HandledByHost = true;   // grid reloads instead of moving nodes itself
+    e.HandledByHost = true;
 };
+
+// Or let the grid do it and react to the settled hierarchy.
+grid.RowDropCompleted += (s, e) =>
+    Log($"{e.Items.Count} rows now under {e.ParentItem ?? "(root)"}, " +
+        $"source updated: {e.SourceUpdated}");
 ```
+
+`RowDropped` still fires first and is unchanged. `RowDropCompleted` fires once the
+collections have been rewritten and the view rebuilt, so its `Nodes` are resolved
+against the new tree rather than the ones that were dragged. `ParentNode` is the
+parent the rows ended up under, null at root level.
+
+Set `UpdateSourceOnRowDrop="False"` to go back to the grid only rearranging its own
+nodes and leaving your collections alone.
 
 ---
 
@@ -634,6 +805,26 @@ strip — each with its own menu property (`RecordContextMenu`, `HeaderContextMe
 `ExpanderContextMenu`). Stock menus cover sort, filter, auto-fit, freeze, hide and
 clipboard.
 
+### Adding to the stock menus
+
+`HeaderContextMenuItems`, `RecordContextMenuItems` and `ExpanderContextMenuItems`
+append to the built-in menus after a separator, leaving every default entry intact.
+
+```csharp
+grid.HeaderContextMenuItems.Add(new MenuItem
+{
+    Header = "Copy column header",
+    Command = copyHeaderCommand
+});
+```
+
+Items are detached from the previous menu before each rebuild, so the same instance
+can be reused — a menu item has one logical parent, and the stock menus are rebuilt
+on every right-click.
+
+To replace a menu outright rather than extend it, set `HeaderContextMenu`; the
+matching `...Items` collection is then ignored.
+
 ```csharp
 grid.GridContextMenuOpening += (s, e) =>
 {
@@ -641,6 +832,12 @@ grid.GridContextMenuOpening += (s, e) =>
         e.ContextMenu = myHeaderMenu;
 };
 ```
+
+### Group By Box toggle
+
+When `AllowGrouping` is true, the header menu carries a checkable **Group By Box**
+entry that shows and hides the grouping panel. It toggles `ShowGroupDropArea` only —
+any active grouping survives hiding and re-showing the box.
 
 The menu's `DataContext` is a `RecordContextMenuInfo`, `HeaderContextMenuInfo` or
 `ExpanderContextMenuInfo` carrying the clicked node and column.
@@ -661,8 +858,31 @@ grid.ClipboardController.CopyOptions = GridCopyOptions.IncludeHeaders
 grid.ClipboardController.PasteMode = GridPasteMode.FillEmptyOnly;
 ```
 
-Pasted values go through the same coercion and validation as typed edits, so a bad
-paste reports errors rather than corrupting the model.
+### Pasting from Excel
+
+```xml
+<tg:TreeGridControl AllowPaste="True" AllowExcelPaste="True" />
+```
+
+Copy a block of cells in Excel, select a starting cell in the grid, press Ctrl+V. The
+block fills left to right then downward from that cell. `AllowExcelPaste="False"`
+writes only the current cell, leaving `AllowPaste` as the master switch.
+
+Clipboard text is parsed with quotes honoured, because Excel quotes any cell holding
+a tab or a line break — splitting on the delimiters directly would corrupt those cells
+and shift everything after them. Group header rows are skipped rather than consuming a
+clipboard row, and a read-only column still consumes its cell so the rest of the row
+stays aligned with the columns it came from.
+
+```csharp
+grid.PasteCompleted += (s, e) =>
+    Log($"{e.UpdatedCells} cells across {e.RowsAffected} rows, " +
+        $"{e.RejectedCells} rejected, {e.TruncatedRows} past the end");
+```
+
+Pasted values go through the same coercion, `CellValidating` event and post-write
+validation as typed edits, so a cell the model refuses is counted as rejected and
+leaves the rest of the block intact.
 
 ---
 
@@ -720,6 +940,56 @@ about and the rest still follows a theme swap.
 | Rows | `RowBackground`, `AlternatingRowBackground`, `ShowAlternatingRows`, `SelectedRowBackground`, `SelectedRowForeground`, `HoverRowBackground`, `RowHeight` |
 | Cells | `CellForeground`, `CellFontFamily`, `CellFontSize`, `CellFontWeight`, `CellPadding` |
 | Chrome | `GridLineBrush`, `GridLinesVisibility`, `CurrentCellBorderBrush`, `ErrorBrush`, `EditorBackground`, `ExpanderGlyphBrush`, `FrozenLineBrush`, `DropIndicatorBrush`, `IndentPerLevel` |
+| Header icons | `SortIconBrush`, `FilterIconBrush`, `FilterIconActiveBrush`, `SortBadgeBackground`, `SortBadgeForeground` |
+| Filter popup | `FilterPopupBackground`, `FilterPopupForeground`, `FilterPopupBorderBrush`, `FilterPopupAccentBrush`, `FilterPopupWidth` |
+| Filter list | `FilterListBackground`, `FilterListForeground`, `FilterListBorderBrush`, `FilterItemHoverBackground`, `FilterItemSelectedBackground`, `FilterListMaxHeight` |
+| Filter editors | `FilterInputBackground`, `FilterInputForeground`, `FilterInputBorderBrush` |
+| Filter popup size | `AllowFilterPopupResize`, `MinFilterPopupWidth`, `MinFilterListHeight` |
+
+### Header icons and the filter popup
+
+```xml
+<tg:TreeGridControl HeaderBackground="#1F2328"
+                    HeaderForeground="#E6EDF3"
+                    FilterIconActiveBrush="#58A6FF"
+                    FilterPopupBackground="#161B22"
+                    FilterPopupForeground="#C9D1D9"
+                    FilterListBackground="#0D1117"
+                    FilterItemHoverBackground="#1F2933" />
+```
+
+**Icons follow the header foreground.** `SortIconBrush` and `FilterIconBrush`, when
+unset, resolve to `HeaderForeground` if you set one, and only then to the theme. That
+ordering exists because the glyphs used to come from theme-level resources while
+`HeaderBackground` was per-instance — a custom dark header left grey glyphs on a dark
+strip and the icons appeared to be missing. Setting a header colour now carries the
+icons with it, and defaults are unchanged when you set neither.
+
+The value checklist is retemplated so hover and selection use
+`FilterItemHoverBackground` / `FilterItemSelectedBackground`. The stock `ListBoxItem`
+hard-codes the system highlight colour, which reads wrong on a custom or dark popup.
+
+**Editors need their own brush.** `FilterInputForeground` covers the search box, the
+Conditions drop-downs and value boxes, the And/Or radios and the case-sensitivity
+check. Buttons are deliberately excluded, so Sort A-Z, Clear, Cancel and OK keep the
+application's button styling. It is separate from `FilterPopupForeground` because a `TextBox`,
+`ComboBox`, `CheckBox`, `RadioButton` and `Expander` each carry a `Foreground` from
+their own default style, and a style setter beats an inherited value — so a
+popup-level foreground alone leaves those controls black. It defaults to
+`FilterPopupForeground`, so setting just the popup colour still does the right thing.
+
+For a full retemplate, `FilterPopupStyle` replaces the popup's `Style` outright; the
+individual brushes are then ignored rather than fighting your style.
+
+**The popup is resizable.** Drag the grip in its bottom-right corner to make it wider
+and taller; the new size is written back to `FilterPopupWidth` and
+`FilterListMaxHeight`, so the next column opens at the same size rather than snapping
+back. Only the value list grows vertically — the heading, conditions and buttons keep
+their natural height, so the popup stays usable at any size. `MinFilterPopupWidth` and
+`MinFilterListHeight` set the floor; `AllowFilterPopupResize="False"` hides the grip.
+
+Popup appearance is applied on each opening, so a theme swap between openings is
+picked up without recreating anything.
 
 `HoverRowBackground` is null by default; setting it is what enables hover
 highlighting. Use `ClearValue(...)` rather than assigning a theme colour to reset a
@@ -809,6 +1079,7 @@ rendering an empty label. `FlowDirection="RightToLeft"` mirrors the arrange pass
 | <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> | Commit, move to next/previous editable cell |
 | <kbd>Esc</kbd> | Cancel edit, or cancel a drag |
 | <kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd> / <kbd>V</kbd> | Copy / cut / paste |
+| <kbd>Del</kbd> | Delete selected rows, when `AllowDeleteRows` is on |
 
 ---
 

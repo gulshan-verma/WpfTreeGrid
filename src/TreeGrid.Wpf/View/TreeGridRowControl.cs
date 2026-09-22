@@ -102,6 +102,12 @@ namespace TreeGrid.Wpf.View
         /// <summary>Per-row conditional overrides, or null.</summary>
         public QueryRowStyleEventArgs RowOverrides { get; set; }
 
+        /// <summary>
+        /// True while the row shows its selection / hover colour over the conditional colours,
+        /// so neither the row nor the cell overrides are painted.
+        /// </summary>
+        public bool SuppressConditionalStyle { get; set; }
+
         /// <summary>Supplies per-cell conditional overrides, or null.</summary>
         public Func<TreeNode, TreeGridColumn, int, QueryCellStyleEventArgs> CellStyleResolver { get; set; }
 
@@ -360,13 +366,19 @@ namespace TreeGrid.Wpf.View
             if (isSelected && VisualStyle?.SelectedRowForeground != null)
                 foreground = VisualStyle.SelectedRowForeground;
 
-            if (RowOverrides != null)
+            if (SuppressConditionalStyle)
+            {
+                // A cell override painted earlier would otherwise stay on top of the row colour.
+                if (!cell.IsMergedCell)
+                    cell.Background = Brushes.Transparent;
+            }
+            else if (RowOverrides != null)
             {
                 foreground = RowOverrides.Foreground ?? foreground;
                 weight = RowOverrides.FontWeight ?? weight;
             }
 
-            if (CellStyleResolver != null && cell.Column != null)
+            if (!SuppressConditionalStyle && CellStyleResolver != null && cell.Column != null)
             {
                 var overrides = CellStyleResolver(Node, cell.Column, columnIndex);
 
@@ -399,6 +411,12 @@ namespace TreeGrid.Wpf.View
 
             if (VisualStyle.HeaderFontFamily != null)
                 header.FontFamily = VisualStyle.HeaderFontFamily;
+
+            header.SortIconBrush = VisualStyle.SortIconBrush;
+            header.FilterIconBrush = VisualStyle.FilterIconBrush;
+            header.FilterIconActiveBrush = VisualStyle.FilterIconActiveBrush;
+            header.SortBadgeBackground = VisualStyle.SortBadgeBackground;
+            header.SortBadgeForeground = VisualStyle.SortBadgeForeground;
         }
 
         private void ResolveMergeState()
@@ -427,6 +445,10 @@ namespace TreeGrid.Wpf.View
         /// <summary>Returns the cell hosting a column, or null when it is not realised.</summary>
         public TreeGridCell GetCell(int columnIndex) =>
             _realized.TryGetValue(columnIndex, out var element) ? element as TreeGridCell : null;
+
+        /// <summary>Header-row equivalent of <see cref="GetCell"/>.</summary>
+        public TreeGridHeaderCell GetHeaderCell(int columnIndex) =>
+            _realized.TryGetValue(columnIndex, out var element) ? element as TreeGridHeaderCell : null;
 
         protected override Size MeasureOverride(Size availableSize)
         {
@@ -465,7 +487,8 @@ namespace TreeGrid.Wpf.View
                 if (_mergeSpans.TryGetValue(kvp.Key, out var span) && span > 1)
                     cellHeight = span * (RowHeight > 0 ? RowHeight : height);
 
-                kvp.Value.Measure(new Size(column.ActualWidth, cellHeight));
+                // Rounded down, so a cell never asks for more than its snapped slot (see PixelSnapping).
+                kvp.Value.Measure(new Size(PixelSnapping.FloorX(this, column.ActualWidth), PixelSnapping.FloorY(this, cellHeight)));
             }
 
             return new Size(ViewportWidth > 0 ? ViewportWidth : Layout.TotalWidth, height);
@@ -536,7 +559,11 @@ namespace TreeGrid.Wpf.View
                 if (IsRightToLeft)
                     x = finalSize.Width - x - column.ActualWidth;
 
-                element.Arrange(new Rect(x, 0, column.ActualWidth, height));
+                // Whole device pixels, so the next cell cannot cover this one's right edge.
+                var (snappedX, width) = PixelSnapping.SnapX(this, x, column.ActualWidth);
+                var (_, snappedHeight) = PixelSnapping.SnapY(this, 0, height);
+
+                element.Arrange(new Rect(snappedX, 0, width, snappedHeight));
             }
 
             return finalSize;
@@ -548,18 +575,20 @@ namespace TreeGrid.Wpf.View
 
             if (GridLineBrush != null && VisualStyle?.ShowHorizontalGridLines != false)
             {
-                var pen = new Pen(GridLineBrush, 1);
-                pen.Freeze();
+                // Exactly one device pixel, centred on the row's last device-pixel line, so it
+                // stays crisp at any display scaling. Cells draw the same line themselves; this
+                // one covers the empty area to the right of the last column.
+                var pixel = 1d / VisualTreeHelper.GetDpi(this).DpiScaleY;
+                var pen = new Pen(GridLineBrush, pixel).FreezeIfPossible();
 
-                var y = Math.Round(ActualHeight) - 0.5;
+                var y = ActualHeight - pixel / 2;
                 dc.DrawLine(pen, new Point(0, y), new Point(ActualWidth, y));
             }
 
             if (FrozenLineBrush == null || Layout == null)
                 return;
 
-            var frozenPen = new Pen(FrozenLineBrush, 1);
-            frozenPen.Freeze();
+            var frozenPen = new Pen(FrozenLineBrush, 1).FreezeIfPossible();
 
             if (Layout.FrozenColumnCount > 0 && Layout.FrozenWidth > 0 &&
                 Layout.FrozenWidth < ActualWidth)

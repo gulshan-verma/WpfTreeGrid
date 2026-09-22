@@ -49,6 +49,9 @@ namespace TreeGrid.Wpf.View
 
         public Brush SelectedRowBrush { get; set; }
 
+        /// <summary>Selected and hovered rows ignore the conditional row / cell colours.</summary>
+        public bool SelectionOverridesConditionalStyle { get; set; }
+
         public bool ShowAlternatingRows { get; set; }
 
         public bool EnableColumnVirtualization { get; set; } = true;
@@ -135,6 +138,7 @@ namespace TreeGrid.Wpf.View
                 row.IsRowSelected = node.IsSelected;
                 row.IsCellSelectionUnit = IsCellSelectionUnit;
                 row.CurrentColumnIndex = CurrentColumnResolver?.Invoke(node) ?? -1;
+                row.SuppressConditionalStyle = SuppressesConditionalStyle(kvp.Key, node);
                 row.Background = ResolveRowBackground(kvp.Key, node);
                 row.RefreshState();
             }
@@ -164,8 +168,11 @@ namespace TreeGrid.Wpf.View
             UpdateScrollInfo(new Size(width, height));
             RealizeRows(width, height);
 
+            // Rounded down, so a row never asks for more than its snapped slot (see PixelSnapping).
+            var rowHeight = PixelSnapping.FloorY(this, RowHeight);
+
             foreach (var kvp in _realizedRows)
-                kvp.Value.Measure(new Size(width, RowHeight));
+                kvp.Value.Measure(new Size(width, rowHeight));
 
             return new Size(width, height);
         }
@@ -174,8 +181,8 @@ namespace TreeGrid.Wpf.View
         {
             foreach (var kvp in _realizedRows)
             {
-                var y = kvp.Key * RowHeight - _offset.Y;
-                kvp.Value.Arrange(new Rect(0, y, finalSize.Width, RowHeight));
+                var (y, height) = PixelSnapping.SnapY(this, kvp.Key * RowHeight - _offset.Y, RowHeight);
+                kvp.Value.Arrange(new Rect(0, y, finalSize.Width, height));
             }
 
             return finalSize;
@@ -258,6 +265,7 @@ namespace TreeGrid.Wpf.View
                 row.VisualStyle = VisualStyle;
                 row.CellStyleResolver = CellStyleResolver;
                 row.RowOverrides = ResolveRowOverrides(node, i);
+                row.SuppressConditionalStyle = SuppressesConditionalStyle(i, node);
                 row.IsRightToLeft = FlowDirection == FlowDirection.RightToLeft;
                 row.Background = ResolveRowBackground(i, node);
                 row.BindNode(node);
@@ -275,21 +283,30 @@ namespace TreeGrid.Wpf.View
             return overrides != null && overrides.HasOverrides ? overrides : null;
         }
 
+        private bool ShowsSelection(TreeNode node) => node.IsSelected && SelectedRowBrush != null;
+
+        private bool ShowsHover(int index) => index == HoveredRowIndex && VisualStyle?.HoverRowBackground != null;
+
+        /// <summary>True when the row's selection / hover colour must win over its conditional colours.</summary>
+        private bool SuppressesConditionalStyle(int index, TreeNode node) =>
+            SelectionOverridesConditionalStyle && (ShowsSelection(node) || ShowsHover(index));
+
         /// <summary>
         /// Row background precedence: conditional override, then selection, then hover,
-        /// then the alternating stripe, then the plain row brush.
+        /// then the alternating stripe, then the plain row brush. With
+        /// <see cref="SelectionOverridesConditionalStyle"/>, selection and hover come first.
         /// </summary>
         private Brush ResolveRowBackground(int index, TreeNode node)
         {
-            var overrides = ResolveRowOverrides(node, index);
+            var overrides = SuppressesConditionalStyle(index, node) ? null : ResolveRowOverrides(node, index);
 
             if (overrides?.Background != null)
                 return overrides.Background;
 
-            if (node.IsSelected && SelectedRowBrush != null)
+            if (ShowsSelection(node))
                 return SelectedRowBrush;
 
-            if (index == HoveredRowIndex && VisualStyle?.HoverRowBackground != null)
+            if (ShowsHover(index))
                 return VisualStyle.HoverRowBackground;
 
             if (ShowAlternatingRows && index % 2 == 1 && AlternatingRowBrush != null)

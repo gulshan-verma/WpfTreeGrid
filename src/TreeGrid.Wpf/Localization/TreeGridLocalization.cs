@@ -43,6 +43,7 @@ namespace TreeGrid.Wpf.Localization
             ["NoRecords"] = "No records to display",
             ["NoMatches"] = "No rows match the current filter",
             ["Loading"] = "Loading...",
+            ["GroupByBox"] = "Group By Box",
             ["GroupByColumn"] = "Group by this column",
             ["UngroupColumn"] = "Ungroup this column",
             ["MoveGroupUp"] = "Move group level up",
@@ -58,6 +59,14 @@ namespace TreeGrid.Wpf.Localization
             ["ExportExcel"] = "Export to Excel",
             ["ExportCsv"] = "Export to CSV",
             ["ExportPdf"] = "Export to PDF",
+            ["DeleteRowsTitle"] = "Delete rows",
+            ["DeleteRowsConfirm"] = "Delete {0} {1}? This cannot be undone.",
+            ["RowSingular"] = "row",
+            ["RowPlural"] = "rows",
+            ["BulkUpdateTitle"] = "Update selected cells",
+            ["BulkUpdateMixedValues"] =
+                "Various values were found in the selected cells. " +
+                "Do you want to update all selected cells to this value?",
             ["ValidationFailed"] = "The value is not valid.",
             ["RequiredField"] = "This field is required."
         };

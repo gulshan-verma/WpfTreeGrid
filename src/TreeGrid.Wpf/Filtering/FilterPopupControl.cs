@@ -6,6 +6,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Media;
 
 namespace TreeGrid.Wpf.Filtering
 {
@@ -75,6 +76,54 @@ namespace TreeGrid.Wpf.Filtering
 
         public static readonly DependencyProperty IsCaseSensitiveProperty = DependencyProperty.Register(
             nameof(IsCaseSensitive), typeof(bool), typeof(FilterPopupControl), new PropertyMetadata(false));
+
+        // Appearance. All null by default; the grid fills them from its resolved
+        // visual style, which falls back to the current theme.
+        public static readonly DependencyProperty PopupBorderBrushProperty = DependencyProperty.Register(
+            nameof(PopupBorderBrush), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty ListBackgroundProperty = DependencyProperty.Register(
+            nameof(ListBackground), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty ListForegroundProperty = DependencyProperty.Register(
+            nameof(ListForeground), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty ListBorderBrushProperty = DependencyProperty.Register(
+            nameof(ListBorderBrush), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty ItemHoverBackgroundProperty = DependencyProperty.Register(
+            nameof(ItemHoverBackground), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty ItemSelectedBackgroundProperty = DependencyProperty.Register(
+            nameof(ItemSelectedBackground), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty AccentBrushProperty = DependencyProperty.Register(
+            nameof(AccentBrush), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        // Editors inside the popup need their own brushes: a TextBox, ComboBox,
+        // CheckBox, RadioButton and Expander each carry a Foreground from their own
+        // default style, and a style setter beats an inherited value - which is why
+        // the Conditions section stayed black on a dark popup.
+        public static readonly DependencyProperty InputBackgroundProperty = DependencyProperty.Register(
+            nameof(InputBackground), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty InputForegroundProperty = DependencyProperty.Register(
+            nameof(InputForeground), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty InputBorderBrushProperty = DependencyProperty.Register(
+            nameof(InputBorderBrush), typeof(Brush), typeof(FilterPopupControl), new PropertyMetadata(null));
+
+        public static readonly DependencyProperty ListMaxHeightProperty = DependencyProperty.Register(
+            nameof(ListMaxHeight), typeof(double), typeof(FilterPopupControl), new PropertyMetadata(180d));
+
+        public static readonly DependencyProperty AllowResizeProperty = DependencyProperty.Register(
+            nameof(AllowResize), typeof(bool), typeof(FilterPopupControl), new PropertyMetadata(true));
+
+        public static readonly DependencyProperty MinPopupWidthProperty = DependencyProperty.Register(
+            nameof(MinPopupWidth), typeof(double), typeof(FilterPopupControl), new PropertyMetadata(220d));
+
+        public static readonly DependencyProperty MinListHeightProperty = DependencyProperty.Register(
+            nameof(MinListHeight), typeof(double), typeof(FilterPopupControl), new PropertyMetadata(80d));
 
         static FilterPopupControl()
         {
@@ -156,6 +205,98 @@ namespace TreeGrid.Wpf.Filtering
             set => SetValue(IsCaseSensitiveProperty, value);
         }
 
+        public Brush PopupBorderBrush
+        {
+            get => (Brush)GetValue(PopupBorderBrushProperty);
+            set => SetValue(PopupBorderBrushProperty, value);
+        }
+
+        /// <summary>Background of the value checklist.</summary>
+        public Brush ListBackground
+        {
+            get => (Brush)GetValue(ListBackgroundProperty);
+            set => SetValue(ListBackgroundProperty, value);
+        }
+
+        public Brush ListForeground
+        {
+            get => (Brush)GetValue(ListForegroundProperty);
+            set => SetValue(ListForegroundProperty, value);
+        }
+
+        public Brush ListBorderBrush
+        {
+            get => (Brush)GetValue(ListBorderBrushProperty);
+            set => SetValue(ListBorderBrushProperty, value);
+        }
+
+        public Brush ItemHoverBackground
+        {
+            get => (Brush)GetValue(ItemHoverBackgroundProperty);
+            set => SetValue(ItemHoverBackgroundProperty, value);
+        }
+
+        public Brush ItemSelectedBackground
+        {
+            get => (Brush)GetValue(ItemSelectedBackgroundProperty);
+            set => SetValue(ItemSelectedBackgroundProperty, value);
+        }
+
+        /// <summary>Used for the column-name heading and other emphasis.</summary>
+        public Brush AccentBrush
+        {
+            get => (Brush)GetValue(AccentBrushProperty);
+            set => SetValue(AccentBrushProperty, value);
+        }
+
+        /// <summary>Background of the search box, condition boxes and drop-downs.</summary>
+        public Brush InputBackground
+        {
+            get => (Brush)GetValue(InputBackgroundProperty);
+            set => SetValue(InputBackgroundProperty, value);
+        }
+
+        /// <summary>Text colour for every editor in the popup, Conditions included.</summary>
+        public Brush InputForeground
+        {
+            get => (Brush)GetValue(InputForegroundProperty);
+            set => SetValue(InputForegroundProperty, value);
+        }
+
+        public Brush InputBorderBrush
+        {
+            get => (Brush)GetValue(InputBorderBrushProperty);
+            set => SetValue(InputBorderBrushProperty, value);
+        }
+
+        public double ListMaxHeight
+        {
+            get => (double)GetValue(ListMaxHeightProperty);
+            set => SetValue(ListMaxHeightProperty, value);
+        }
+
+        /// <summary>Shows a grip in the bottom-right corner for dragging the popup larger.</summary>
+        public bool AllowResize
+        {
+            get => (bool)GetValue(AllowResizeProperty);
+            set => SetValue(AllowResizeProperty, value);
+        }
+
+        public double MinPopupWidth
+        {
+            get => (double)GetValue(MinPopupWidthProperty);
+            set => SetValue(MinPopupWidthProperty, value);
+        }
+
+        public double MinListHeight
+        {
+            get => (double)GetValue(MinListHeightProperty);
+            set => SetValue(MinListHeightProperty, value);
+        }
+
+        /// <summary>Raised after a resize drag, so the host can remember the new size.</summary>
+        public event EventHandler Resized;
+
         /// <summary>Every distinct value in the column.</summary>
         public ObservableCollection<FilterElement> Elements { get; }
 
@@ -181,6 +322,7 @@ namespace TreeGrid.Wpf.Filtering
         private ButtonBase _sortAscButton;
         private ButtonBase _sortDescButton;
         private ToggleButton _selectAllBox;
+        private Thumb _resizeGrip;
         private bool _suppressSelectAll;
 
         public override void OnApplyTemplate()
@@ -195,6 +337,7 @@ namespace TreeGrid.Wpf.Filtering
             _sortAscButton = GetTemplateChild("PART_SortAscending") as ButtonBase;
             _sortDescButton = GetTemplateChild("PART_SortDescending") as ButtonBase;
             _selectAllBox = GetTemplateChild("PART_SelectAll") as ToggleButton;
+            _resizeGrip = GetTemplateChild("PART_ResizeGrip") as Thumb;
 
             if (_okButton != null) _okButton.Click += OnOk;
             if (_cancelButton != null) _cancelButton.Click += OnCancel;
@@ -202,6 +345,12 @@ namespace TreeGrid.Wpf.Filtering
             if (_sortAscButton != null) _sortAscButton.Click += OnSortAscending;
             if (_sortDescButton != null) _sortDescButton.Click += OnSortDescending;
             if (_selectAllBox != null) _selectAllBox.Click += OnSelectAllClicked;
+
+            if (_resizeGrip != null)
+            {
+                _resizeGrip.DragDelta += OnResizeDelta;
+                _resizeGrip.DragCompleted += OnResizeCompleted;
+            }
         }
 
         private void Detach()
@@ -212,6 +361,33 @@ namespace TreeGrid.Wpf.Filtering
             if (_sortAscButton != null) _sortAscButton.Click -= OnSortAscending;
             if (_sortDescButton != null) _sortDescButton.Click -= OnSortDescending;
             if (_selectAllBox != null) _selectAllBox.Click -= OnSelectAllClicked;
+
+            if (_resizeGrip != null)
+            {
+                _resizeGrip.DragDelta -= OnResizeDelta;
+                _resizeGrip.DragCompleted -= OnResizeCompleted;
+            }
+        }
+
+        private void OnResizeDelta(object sender, DragDeltaEventArgs e)
+        {
+            e.Handled = true;
+
+            // Width may still be NaN if the style never set one; fall back to what is
+            // actually on screen so the first drag does not jump.
+            var width = double.IsNaN(Width) || Width <= 0 ? ActualWidth : Width;
+
+            Width = Math.Max(MinPopupWidth, width + e.HorizontalChange);
+
+            // Only the list grows vertically; the header, conditions and buttons keep
+            // their natural height, so the popup stays usable at any size.
+            ListMaxHeight = Math.Max(MinListHeight, ListMaxHeight + e.VerticalChange);
+        }
+
+        private void OnResizeCompleted(object sender, DragCompletedEventArgs e)
+        {
+            e.Handled = true;
+            Resized?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>Loads the popup for a column. Existing predicates pre-select the list.</summary>

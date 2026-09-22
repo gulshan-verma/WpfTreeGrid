@@ -18,8 +18,7 @@ namespace TreeGrid.Wpf.View
         {
             IsHitTestVisible = false;
 
-            _pen = new Pen(indicatorBrush ?? Brushes.DodgerBlue, 2);
-            _pen.Freeze();
+            _pen = new Pen(indicatorBrush ?? Brushes.DodgerBlue, 2).FreezeIfPossible();
         }
 
         /// <summary>Horizontal position of the insertion line, in adorned-element coordinates.</summary>
@@ -57,7 +56,7 @@ namespace TreeGrid.Wpf.View
                 ctx.LineTo(new Point(x, 5), true, false);
             }
 
-            top.Freeze();
+            top.FreezeIfPossible();
             drawingContext.DrawGeometry(_pen.Brush, null, top);
         }
     }

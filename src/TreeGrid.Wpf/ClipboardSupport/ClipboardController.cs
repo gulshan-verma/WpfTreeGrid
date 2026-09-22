@@ -51,6 +51,21 @@ namespace TreeGrid.Wpf.ClipboardSupport
         public string ClipboardText { get; set; }
     }
 
+    /// <summary>Outcome of a paste, so hosts can report what actually landed.</summary>
+    public sealed class GridPasteResult
+    {
+        public int UpdatedCells { get; internal set; }
+
+        public int RejectedCells { get; internal set; }
+
+        public int RowsAffected { get; internal set; }
+
+        /// <summary>Rows in the clipboard that ran past the end of the grid.</summary>
+        public int TruncatedRows { get; internal set; }
+
+        public bool HasChanges => UpdatedCells > 0;
+    }
+
     public sealed class PasteContentEventArgs : CancelEventArgs
     {
         public PasteContentEventArgs(TreeNode targetNode, int targetColumnIndex, string clipboardText)
@@ -222,48 +237,64 @@ namespace TreeGrid.Wpf.ClipboardSupport
         /// Reads tab-separated clipboard text and writes it starting at the target
         /// cell. Returns the number of cells actually written.
         /// </summary>
-        public int Paste(TreeNode targetNode, int targetColumnIndex, FlatTreeView view,
-            IReadOnlyList<TreeGridColumn> columns, Func<TreeNode, TreeGridColumn, string, bool> writer)
+        public GridPasteResult Paste(TreeNode targetNode, int targetColumnIndex, FlatTreeView view,
+            IReadOnlyList<TreeGridColumn> columns, Func<TreeNode, TreeGridColumn, string, bool> writer,
+            bool allowTabular = true)
         {
             if (targetNode == null || view == null || columns == null || writer == null)
-                return 0;
+                return new GridPasteResult();
 
             string text;
 
             try
             {
                 if (!Clipboard.ContainsText())
-                    return 0;
+                    return new GridPasteResult();
 
                 text = Clipboard.GetText();
             }
             catch (Exception)
             {
-                return 0;
+                return new GridPasteResult();
             }
 
             if (string.IsNullOrEmpty(text))
-                return 0;
+                return new GridPasteResult();
 
             var args = new PasteContentEventArgs(targetNode, targetColumnIndex, text);
             PasteContent?.Invoke(this, args);
 
             if (args.Cancel || PasteMode == GridPasteMode.Manual)
-                return 0;
+                return new GridPasteResult();
 
-            var rows = text.Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
-            var written = 0;
+            var table = ParseTabular(text);
+            var result = new GridPasteResult();
+
+            if (table.Count == 0)
+                return result;
+
+            // A single clipboard cell fills only the target when tabular paste is off.
+            if (!allowTabular && (table.Count > 1 || table[0].Count > 1))
+                table = new List<List<string>> { new List<string> { table[0][0] } };
+
             var rowIndex = targetNode.FlatIndex;
 
-            foreach (var row in rows)
+            foreach (var row in table)
             {
+                // Skip group headers rather than consuming a clipboard row on them.
+                while (rowIndex < view.Count && (view[rowIndex].IsGroupHeader || view[rowIndex].Item == null))
+                    rowIndex++;
+
                 if (rowIndex < 0 || rowIndex >= view.Count)
-                    break;
+                {
+                    result.TruncatedRows++;
+                    continue;
+                }
 
                 var node = view[rowIndex];
-                var cells = row.Split('\t');
+                var touched = false;
 
-                for (var i = 0; i < cells.Length; i++)
+                for (var i = 0; i < row.Count; i++)
                 {
                     var columnIndex = targetColumnIndex + i;
 
@@ -272,7 +303,10 @@ namespace TreeGrid.Wpf.ClipboardSupport
 
                     var column = columns[columnIndex];
 
-                    if (!column.AllowEditing || string.IsNullOrEmpty(column.MappingName))
+                    // A read-only column still consumes its clipboard cell, so the rest
+                    // of the row stays aligned with the columns it came from.
+                    if (!column.AllowEditing || !column.SupportsValueCommit ||
+                        string.IsNullOrEmpty(column.MappingName))
                         continue;
 
                     if (PasteMode == GridPasteMode.FillEmptyOnly)
@@ -282,14 +316,110 @@ namespace TreeGrid.Wpf.ClipboardSupport
                             continue;
                     }
 
-                    if (writer(node, column, cells[i].Trim('"')))
-                        written++;
+                    if (writer(node, column, row[i]))
+                    {
+                        result.UpdatedCells++;
+                        touched = true;
+                    }
+                    else
+                    {
+                        result.RejectedCells++;
+                    }
                 }
+
+                if (touched)
+                    result.RowsAffected++;
 
                 rowIndex++;
             }
 
-            return written;
+            return result;
+        }
+
+        /// <summary>
+        /// Splits clipboard text into rows and cells.
+        /// <para>
+        /// Excel quotes any cell containing a tab or a line break, so splitting on the
+        /// delimiters directly corrupts multi-line cells and shifts everything after
+        /// them. This walks the text instead, honouring quotes and doubled quotes.
+        /// </para>
+        /// </summary>
+        public static List<List<string>> ParseTabular(string text)
+        {
+            var rows = new List<List<string>>();
+
+            if (string.IsNullOrEmpty(text))
+                return rows;
+
+            var row = new List<string>();
+            var cell = new StringBuilder();
+            var quoted = false;
+
+            for (var i = 0; i < text.Length; i++)
+            {
+                var ch = text[i];
+
+                if (quoted)
+                {
+                    if (ch != '"')
+                    {
+                        cell.Append(ch);
+                        continue;
+                    }
+
+                    if (i + 1 < text.Length && text[i + 1] == '"')
+                    {
+                        cell.Append('"');
+                        i++;
+                        continue;
+                    }
+
+                    quoted = false;
+                    continue;
+                }
+
+                switch (ch)
+                {
+                    case '"' when cell.Length == 0:
+                        quoted = true;
+                        break;
+
+                    case '\t':
+                        row.Add(cell.ToString());
+                        cell.Clear();
+                        break;
+
+                    case '\r':
+                        break;
+
+                    case '\n':
+                        row.Add(cell.ToString());
+                        cell.Clear();
+                        rows.Add(row);
+                        row = new List<string>();
+                        break;
+
+                    default:
+                        cell.Append(ch);
+                        break;
+                }
+            }
+
+            if (cell.Length > 0 || row.Count > 0)
+            {
+                row.Add(cell.ToString());
+                rows.Add(row);
+            }
+
+            // Excel ends the block with a newline, leaving a trailing empty row.
+            if (rows.Count > 0)
+            {
+                var last = rows[rows.Count - 1];
+                if (last.Count == 1 && last[0].Length == 0)
+                    rows.RemoveAt(rows.Count - 1);
+            }
+
+            return rows;
         }
 
         // ----------------------------------------------------------------- utils

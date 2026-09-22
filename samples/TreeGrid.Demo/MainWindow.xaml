@@ -12,6 +12,38 @@
         Background="{DynamicResource TreeGrid.Background}">
 
     <Window.Resources>
+        <!-- ======================= Custom context menus =======================
+             The grid sets the menu's DataContext to a RecordContextMenuInfo or
+             HeaderContextMenuInfo for the row/column that was clicked, so items can
+             bind straight to it. Note that {Binding} inside these menus therefore
+             refers to that info object, not to the window.
+        -->
+        <ContextMenu x:Key="RowMenu">
+            <MenuItem Header="{Binding Record.FirstName, StringFormat='Copy name of {0}'}"
+                      Click="OnRowMenuCopyName" />
+            <MenuItem Header="{Binding Column.HeaderText, StringFormat='Copy this {0} cell'}"
+                      Click="OnRowMenuCopyCell" />
+            <Separator />
+            <!-- Tag rather than x:Name: elements inside a ResourceDictionary are in a
+                 separate namescope, so a generated field is not guaranteed. -->
+            <MenuItem Tag="ExpandSubtree" Header="Expand this subtree"
+                      Click="OnRowMenuExpandSubtree" />
+            <MenuItem Header="Select whole level" Click="OnRowMenuSelectLevel" />
+            <Separator />
+            <MenuItem Header="Show details..." Click="OnRowMenuDetails" />
+        </ContextMenu>
+
+        <ContextMenu x:Key="HeaderMenu">
+            <MenuItem Header="{Binding Column.HeaderText, StringFormat='Sort {0} A-Z'}"
+                      Click="OnHeaderMenuSortAsc" />
+            <MenuItem Header="{Binding Column.HeaderText, StringFormat='Sort {0} Z-A'}"
+                      Click="OnHeaderMenuSortDesc" />
+            <Separator />
+            <MenuItem Header="Group by this column" Click="OnHeaderMenuGroup" />
+            <MenuItem Header="Hide this column" Click="OnHeaderMenuHide" />
+            <MenuItem Header="Auto-fit all columns" Click="OnHeaderMenuAutoFit" />
+        </ContextMenu>
+
         <local:BrushNameConverter x:Key="BrushNameConverter" />
         <local:BandBrushConverter x:Key="BandBrushConverter" />
         <local:BandTextConverter x:Key="BandTextConverter" />
@@ -76,6 +108,10 @@
                     <TextBlock Text="Unit" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding SelectionUnits}"
                               SelectedItem="{Binding ElementName=Tree, Path=SelectionUnit, Mode=TwoWay}" />
+                    <CheckBox Content="Observe entity IsSelected/IsChecked"
+                              IsChecked="{Binding ElementName=Tree, Path=ObserveMemberPathChanges, Mode=TwoWay}" />
+                    <Button Content="Select first 3 via entity" Margin="0,4,0,0" Padding="6,3"
+                            Click="OnSelectViaEntity" />
                     <CheckBox Content="Checkbox selection"
                               IsChecked="{Binding ElementName=Tree, Path=AllowCheckBoxSelection, Mode=TwoWay}" />
                     <TextBlock Text="Cascade" Style="{StaticResource FieldLabel}" />
@@ -103,6 +139,14 @@
                     <TextBlock Text="Edit trigger" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding EditTriggers}"
                               SelectedItem="{Binding ElementName=Tree, Path=EditTrigger, Mode=TwoWay}" />
+                    <CheckBox Content="Bulk edit selection (Ctrl+Enter)"
+                              IsChecked="{Binding ElementName=Tree, Path=AllowBulkValueChange, Mode=TwoWay}" />
+                    <CheckBox Content="Confirm when values differ"
+                              IsChecked="{Binding ElementName=Tree, Path=ShowBulkValueChangeConfirmation, Mode=TwoWay}" />
+                    <TextBlock Text="Select several rows, edit one cell, then commit with Ctrl+Enter to fill the rest of the column."
+                               TextWrapping="Wrap" FontSize="10"
+                               Foreground="{DynamicResource TreeGrid.ExpanderGlyph}" Margin="0,2,0,4" />
+
                     <TextBlock Text="Validation mode" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding ValidationModes}"
                               SelectedItem="{Binding ElementName=Tree, Path=ValidationMode, Mode=TwoWay}" />
@@ -138,10 +182,17 @@
                               IsChecked="{Binding ElementName=Tree, Path=AllowGrouping, Mode=TwoWay}" />
                     <CheckBox Content="Show group panel"
                               IsChecked="{Binding ElementName=Tree, Path=ShowGroupDropArea, Mode=TwoWay}" />
+                    <CheckBox Content="Hide grouped columns"
+                              IsChecked="{Binding ElementName=Tree, Path=HideGroupedColumns, Mode=TwoWay}" />
                     <CheckBox Content="Show item counts"
                               IsChecked="{Binding ElementName=Tree, Path=ShowGroupItemCount, Mode=TwoWay}" />
                     <CheckBox Content="Auto-expand new groups"
                               IsChecked="{Binding ElementName=Tree, Path=AutoExpandGroups, Mode=TwoWay}" />
+                    <CheckBox Content="Drag preview (ghost)"
+                              IsChecked="{Binding ElementName=Tree, Path=ShowDragPreview, Mode=TwoWay}" />
+                    <TextBlock Text="Right-click a header for the Group By Box toggle and two custom items."
+                               TextWrapping="Wrap" FontSize="10"
+                               Foreground="{DynamicResource TreeGrid.ExpanderGlyph}" Margin="0,2,0,0" />
                     <CheckBox Content="Show footer"
                               IsChecked="{Binding ElementName=Tree, Path=ShowFooter, Mode=TwoWay}" />
                     <CheckBox Content="Log grouping events" x:Name="LogGroupEventsBox" IsChecked="True" />
@@ -172,6 +223,36 @@
                     <ComboBox ItemsSource="{Binding Palette}"
                               SelectedItem="{Binding ElementName=Tree, Path=HoverRowBackground, Mode=TwoWay}"
                               ItemTemplate="{StaticResource SwatchTemplate}" />
+                    <TextBlock Text="Sort icon colour" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding Palette}"
+                              SelectedItem="{Binding ElementName=Tree, Path=SortIconBrush, Mode=TwoWay}"
+                              ItemTemplate="{StaticResource SwatchTemplate}" />
+                    <TextBlock Text="Filter icon colour" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding Palette}"
+                              SelectedItem="{Binding ElementName=Tree, Path=FilterIconBrush, Mode=TwoWay}"
+                              ItemTemplate="{StaticResource SwatchTemplate}" />
+                    <TextBlock Text="Filter popup background" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding Palette}"
+                              SelectedItem="{Binding ElementName=Tree, Path=FilterPopupBackground, Mode=TwoWay}"
+                              ItemTemplate="{StaticResource SwatchTemplate}" />
+                    <TextBlock Text="Filter popup text" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding Palette}"
+                              SelectedItem="{Binding ElementName=Tree, Path=FilterPopupForeground, Mode=TwoWay}"
+                              ItemTemplate="{StaticResource SwatchTemplate}" />
+                    <TextBlock Text="Filter editor text" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding Palette}"
+                              SelectedItem="{Binding ElementName=Tree, Path=FilterInputForeground, Mode=TwoWay}"
+                              ItemTemplate="{StaticResource SwatchTemplate}" />
+                    <TextBlock Text="Filter editor background" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding Palette}"
+                              SelectedItem="{Binding ElementName=Tree, Path=FilterInputBackground, Mode=TwoWay}"
+                              ItemTemplate="{StaticResource SwatchTemplate}" />
+
+                    <TextBlock Text="Filter list background" Style="{StaticResource FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding Palette}"
+                              SelectedItem="{Binding ElementName=Tree, Path=FilterListBackground, Mode=TwoWay}"
+                              ItemTemplate="{StaticResource SwatchTemplate}" />
+
                     <TextBlock Text="Grid line colour" Style="{StaticResource FieldLabel}" />
                     <ComboBox ItemsSource="{Binding Palette}"
                               SelectedItem="{Binding ElementName=Tree, Path=GridLineBrush, Mode=TwoWay}"
@@ -215,12 +296,25 @@
                     <TextBlock Text="INTERACTION" Style="{StaticResource SectionHeader}" />
                     <CheckBox Content="Row drag and drop"
                               IsChecked="{Binding ElementName=Tree, Path=AllowRowDragDrop, Mode=TwoWay}" />
+                    <CheckBox Content="Update source on drop"
+                              IsChecked="{Binding ElementName=Tree, Path=UpdateSourceOnRowDrop, Mode=TwoWay}" />
                     <CheckBox Content="Default context menus"
                               IsChecked="{Binding ElementName=Tree, Path=ShowDefaultContextMenus, Mode=TwoWay}" />
+                    <CheckBox Content="Custom row + header menus" x:Name="CustomMenusBox"
+                              Checked="OnCustomMenusChanged" Unchecked="OnCustomMenusChanged" />
                     <CheckBox Content="Allow copy (Ctrl+C)"
                               IsChecked="{Binding ElementName=Tree, Path=AllowCopy, Mode=TwoWay}" />
+                    <CheckBox Content="Delete selected rows (Del)"
+                              IsChecked="{Binding ElementName=Tree, Path=AllowDeleteRows, Mode=TwoWay}" />
+                    <CheckBox Content="Confirm before deleting"
+                              IsChecked="{Binding ElementName=Tree, Path=ConfirmRowDelete, Mode=TwoWay}" />
                     <CheckBox Content="Allow paste (Ctrl+V)"
                               IsChecked="{Binding ElementName=Tree, Path=AllowPaste, Mode=TwoWay}" />
+                    <CheckBox Content="Excel tabular paste"
+                              IsChecked="{Binding ElementName=Tree, Path=AllowExcelPaste, Mode=TwoWay}" />
+                    <TextBlock Text="Copy a block of cells in Excel, select a starting cell here, then Ctrl+V."
+                               TextWrapping="Wrap" FontSize="10"
+                               Foreground="{DynamicResource TreeGrid.ExpanderGlyph}" Margin="0,2,0,0" />
 
                     <TextBlock Text="ACTIONS" Style="{StaticResource SectionHeader}" />
                     <UniformGrid Columns="2">
@@ -263,6 +357,9 @@
                                 AutoGenerateColumns="False"
                                 ShowAlternatingRows="True"
                                 AllowCheckBoxSelection="True"
+                                SelectedMemberPath="IsSelected"
+                                CheckedMemberPath="IsChecked"
+                                ObserveMemberPathChanges="True"
                                 AllowSorting="True"
                                 AllowMultiSort="True"
                                 AllowFiltering="True"

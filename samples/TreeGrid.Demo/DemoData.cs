@@ -63,6 +63,23 @@ namespace TreeGrid.Demo
 
         public string ProfileUrl { get; set; }
 
+        private bool _isSelected;
+        private bool _isChecked;
+
+        /// <summary>Mapped to row selection via SelectedMemberPath.</summary>
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set => Set(ref _isSelected, value);
+        }
+
+        /// <summary>Mapped to the hierarchy checkbox via CheckedMemberPath.</summary>
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set => Set(ref _isChecked, value);
+        }
+
         public ObservableCollection<Employee> Children { get; set; } = new ObservableCollection<Employee>();
 
         /// <summary>Cross-field rule: annotations cannot see two properties at once.</summary>

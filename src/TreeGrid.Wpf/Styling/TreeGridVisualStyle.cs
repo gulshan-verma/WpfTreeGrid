@@ -50,10 +50,34 @@ namespace TreeGrid.Wpf.Styling
         public FontWeight CellFontWeight { get; set; } = FontWeights.Normal;
         public Thickness CellPadding { get; set; } = new Thickness(6, 0, 6, 0);
 
+        // -------------------------------------------------------- header icons
+        public Brush SortIconBrush { get; set; }
+        public Brush FilterIconBrush { get; set; }
+        public Brush FilterIconActiveBrush { get; set; }
+        public Brush SortBadgeBackground { get; set; }
+        public Brush SortBadgeForeground { get; set; }
+
+        // -------------------------------------------------------- filter popup
+        public Brush FilterPopupBackground { get; set; }
+        public Brush FilterPopupForeground { get; set; }
+        public Brush FilterPopupBorderBrush { get; set; }
+        public Brush FilterPopupAccentBrush { get; set; }
+        public Brush FilterListBackground { get; set; }
+        public Brush FilterListForeground { get; set; }
+        public Brush FilterListBorderBrush { get; set; }
+        public Brush FilterItemHoverBackground { get; set; }
+        public Brush FilterItemSelectedBackground { get; set; }
+        public Brush FilterInputBackground { get; set; }
+        public Brush FilterInputForeground { get; set; }
+        public Brush FilterInputBorderBrush { get; set; }
+        public double FilterPopupWidth { get; set; } = 270;
+        public double FilterListMaxHeight { get; set; } = 180;
+
         // ------------------------------------------------------------- chrome
         public Brush GridLineBrush { get; set; }
         public GridLinesVisibility GridLinesVisibility { get; set; } = GridLinesVisibility.Both;
         public Brush CurrentCellBorderBrush { get; set; }
+        public Thickness CurrentCellBorderThickness { get; set; } = new Thickness(1);
         public Brush ErrorBrush { get; set; }
         public Brush EditorBackground { get; set; }
         public Brush ExpanderGlyphBrush { get; set; }

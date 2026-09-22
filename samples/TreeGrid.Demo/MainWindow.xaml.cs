@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ using TreeGrid.Wpf.Data;
 using TreeGrid.Wpf.Diagnostics;
 using TreeGrid.Wpf.Export;
 using TreeGrid.Wpf.Filtering;
+using TreeGrid.Wpf.ClipboardSupport;
+using TreeGrid.Wpf.ContextMenus;
 using TreeGrid.Wpf.Editing;
 using TreeGrid.Wpf.Headers;
 using System.Globalization;
@@ -22,6 +25,7 @@ using TreeGrid.Wpf.Selection;
 using TreeGrid.Wpf.Grouping;
 using TreeGrid.Wpf.Styling;
 using TreeGrid.Wpf.Validation;
+using TreeGrid.Wpf.DragDropSupport;
 
 namespace TreeGrid.Demo
 {
@@ -43,6 +47,26 @@ namespace TreeGrid.Demo
             Tree.GroupingChanging += OnGroupingChanging;
             Tree.GroupingChanged += OnGroupingChanged;
             Tree.GroupDragOver += OnGroupDragOver;
+            Tree.BulkValueChanged += OnBulkValueChanged;
+
+            // Custom items appended to the stock header menu; the built-in entries
+            // (sort, filter, group, auto-fit, freeze, hide) are untouched.
+            Tree.HeaderContextMenuItems.Add(new MenuItem
+            {
+                Header = "Copy column header",
+                Command = new RelayCommand(() => Clipboard.SetText(
+                    Tree.GetColumnAt(Tree.CurrentCell.ColumnIndex)?.HeaderText ?? string.Empty))
+            });
+
+            Tree.HeaderContextMenuItems.Add(new MenuItem
+            {
+                Header = "Reset all column widths",
+                Command = new RelayCommand(Tree.AutoFitColumns)
+            });
+            Tree.PasteCompleted += OnPasteCompleted;
+            Tree.RowsDeleted += OnRowsDeleted;
+            Tree.RowDropCompleted += OnRowDropCompleted;
+            Tree.ColumnReordered += OnColumnReordered;
 
             LoadHierarchical();
         }
@@ -274,6 +298,158 @@ namespace TreeGrid.Demo
                 merged.Add(replacement);
         }
 
+        // ------------------------------------------------------- context menus
+
+        private void OnCustomMenusChanged(object sender, RoutedEventArgs e)
+        {
+            if (Tree == null)
+                return;
+
+            if (CustomMenusBox.IsChecked == true)
+            {
+                // Assigning a menu takes precedence over the built-in ones.
+                Tree.RecordContextMenu = (ContextMenu)FindResource("RowMenu");
+                Tree.HeaderContextMenu = (ContextMenu)FindResource("HeaderMenu");
+                Tree.GridContextMenuOpening += OnGridContextMenuOpening;
+            }
+            else
+            {
+                // Clearing falls back to the defaults, or to nothing when those are off.
+                Tree.ClearValue(TreeGridControl.RecordContextMenuProperty);
+                Tree.ClearValue(TreeGridControl.HeaderContextMenuProperty);
+                Tree.GridContextMenuOpening -= OnGridContextMenuOpening;
+            }
+        }
+
+        /// <summary>
+        /// Adjusts the menu just before it opens. Cancel here to suppress it entirely,
+        /// or swap ContextMenu to show something else for this one click.
+        /// </summary>
+        private void OnGridContextMenuOpening(object sender, GridContextMenuOpeningEventArgs e)
+        {
+            if (e.Info is RecordContextMenuInfo record)
+            {
+                // No menu at all on a group header.
+                if (record.Node?.IsGroupHeader == true)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+
+                // Only offer "expand subtree" on a row that actually has children.
+                var item = FindMenuItem(e.ContextMenu, "ExpandSubtree");
+
+                if (item != null)
+                    item.IsEnabled = record.Node?.HasChildNodes == true;
+            }
+
+            StatusText.Text = $"Context menu: {e.Region}";
+        }
+
+        private static MenuItem FindMenuItem(ContextMenu menu, string tag)
+        {
+            if (menu == null)
+                return null;
+
+            foreach (var entry in menu.Items)
+            {
+                if (entry is MenuItem item && (item.Tag as string) == tag)
+                    return item;
+            }
+
+            return null;
+        }
+
+        private static RecordContextMenuInfo RecordInfo(object sender) =>
+            (sender as FrameworkElement)?.DataContext as RecordContextMenuInfo;
+
+        private static HeaderContextMenuInfo HeaderInfo(object sender) =>
+            (sender as FrameworkElement)?.DataContext as HeaderContextMenuInfo;
+
+        private void OnRowMenuCopyName(object sender, RoutedEventArgs e)
+        {
+            if (RecordInfo(sender)?.Record is Employee employee)
+                Clipboard.SetText($"{employee.FirstName} {employee.LastName}");
+        }
+
+        private void OnRowMenuCopyCell(object sender, RoutedEventArgs e)
+        {
+            var info = RecordInfo(sender);
+
+            if (info?.Column == null || info.Record == null)
+                return;
+
+            var value = PropertyAccessor.GetValue(info.Record, info.Column.MappingName);
+            Clipboard.SetText(info.Column.FormatValue(value));
+        }
+
+        private void OnRowMenuExpandSubtree(object sender, RoutedEventArgs e)
+        {
+            var node = RecordInfo(sender)?.Node;
+
+            if (node != null)
+                _ = Tree.ToggleNodeAsync(node);
+        }
+
+        private void OnRowMenuSelectLevel(object sender, RoutedEventArgs e)
+        {
+            var node = RecordInfo(sender)?.Node;
+
+            if (node == null)
+                return;
+
+            Tree.ClearSelection();
+
+            foreach (var candidate in Tree.View)
+            {
+                if (!candidate.IsGroupHeader && candidate.Level == node.Level)
+                    Tree.SelectNode(candidate, clearExisting: false);
+            }
+        }
+
+        private void OnRowMenuDetails(object sender, RoutedEventArgs e)
+        {
+            var info = RecordInfo(sender);
+
+            MessageBox.Show(
+                $"Record: {info?.Record}\nColumn: {info?.Column?.HeaderText}\nLevel: {info?.Node?.Level}",
+                "Row details", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void OnHeaderMenuSortAsc(object sender, RoutedEventArgs e)
+        {
+            var column = HeaderInfo(sender)?.Column;
+
+            if (column != null)
+                Tree.SortColumn(column.MappingName, ListSortDirection.Ascending);
+        }
+
+        private void OnHeaderMenuSortDesc(object sender, RoutedEventArgs e)
+        {
+            var column = HeaderInfo(sender)?.Column;
+
+            if (column != null)
+                Tree.SortColumn(column.MappingName, ListSortDirection.Descending);
+        }
+
+        private void OnHeaderMenuGroup(object sender, RoutedEventArgs e)
+        {
+            var column = HeaderInfo(sender)?.Column;
+
+            if (column != null)
+                Tree.GroupByColumn(column.MappingName);
+        }
+
+        private void OnHeaderMenuHide(object sender, RoutedEventArgs e)
+        {
+            var column = HeaderInfo(sender)?.Column;
+
+            if (column != null)
+                column.IsHidden = true;
+        }
+
+        private void OnHeaderMenuAutoFit(object sender, RoutedEventArgs e) => Tree.AutoFitColumns();
+
         // ------------------------------------------------------------- grouping
 
         private void OnGroupingChanging(object sender, GroupingChangingEventArgs e)
@@ -317,6 +493,40 @@ namespace TreeGrid.Demo
         private void OnExpandGroups(object sender, RoutedEventArgs e) => Tree.ExpandAllGroups();
 
         private void OnClearGrouping(object sender, RoutedEventArgs e) => Tree.ClearGrouping();
+
+        private void OnColumnReordered(object sender, ColumnReorderedEventArgs e) =>
+            StatusText.Text = $"Moved {e.Column?.HeaderText} from position {e.OldIndex + 1} to {e.NewIndex + 1}";
+
+        private void OnRowDropCompleted(object sender, RowDropCompletedEventArgs e)
+        {
+            var parent = (e.ParentItem as Employee)?.ToString() ?? "(root)";
+
+            StatusText.Text =
+                $"Moved {e.Items.Count} row(s) {e.Position} -> parent {parent}" +
+                (e.SourceUpdated ? ", child collections updated" : string.Empty);
+        }
+
+        private void OnRowsDeleted(object sender, RowsDeletedEventArgs e)
+        {
+            StatusText.Text = e.HandledByHost
+                ? $"Host removed {e.Items.Count} row(s)"
+                : $"Deleted {e.RemovedCount} of {e.Items.Count} selected row(s)";
+        }
+
+        private void OnPasteCompleted(object sender, GridPasteResult e)
+        {
+            StatusText.Text =
+                $"Pasted {e.UpdatedCells} cell(s) across {e.RowsAffected} row(s)" +
+                (e.RejectedCells > 0 ? $", {e.RejectedCells} rejected" : string.Empty) +
+                (e.TruncatedRows > 0 ? $", {e.TruncatedRows} row(s) past the end" : string.Empty);
+        }
+
+        private void OnBulkValueChanged(object sender, BulkValueChangedEventArgs e)
+        {
+            StatusText.Text = e.RejectedNodes.Count == 0
+                ? $"Updated {e.UpdatedCount} more cell(s) in {e.Column.HeaderText}"
+                : $"Updated {e.UpdatedCount}, {e.RejectedNodes.Count} rejected by validation";
+        }
 
         // ----------------------------------------------------------- appearance
 
@@ -379,6 +589,13 @@ namespace TreeGrid.Demo
             Tree.ClearValue(TreeGridControl.CellFontSizeProperty);
             Tree.ClearValue(TreeGridControl.HeaderFontWeightProperty);
             Tree.ClearValue(TreeGridControl.GridLinesVisibilityProperty);
+            Tree.ClearValue(TreeGridControl.SortIconBrushProperty);
+            Tree.ClearValue(TreeGridControl.FilterIconBrushProperty);
+            Tree.ClearValue(TreeGridControl.FilterPopupBackgroundProperty);
+            Tree.ClearValue(TreeGridControl.FilterPopupForegroundProperty);
+            Tree.ClearValue(TreeGridControl.FilterListBackgroundProperty);
+            Tree.ClearValue(TreeGridControl.FilterInputForegroundProperty);
+            Tree.ClearValue(TreeGridControl.FilterInputBackgroundProperty);
             Tree.ClearValue(TreeGridControl.RowHeightProperty);
             Tree.ClearValue(TreeGridControl.IndentPerLevelProperty);
 
@@ -404,6 +621,28 @@ namespace TreeGrid.Demo
         private void OnClearFilters(object sender, RoutedEventArgs e) => Tree.ClearFilters();
 
         private void OnSelectAll(object sender, RoutedEventArgs e) => Tree.SelectAll();
+
+        /// <summary>
+        /// Drives selection from the entity side: sets IsSelected on the records and
+        /// lets the mapping pull it into the grid.
+        /// </summary>
+        private void OnSelectViaEntity(object sender, RoutedEventArgs e)
+        {
+            var count = 0;
+
+            foreach (var node in Tree.View)
+            {
+                if (node.IsGroupHeader || !(node.Item is Employee employee))
+                    continue;
+
+                employee.IsSelected = count < 3;
+                count++;
+            }
+
+            // Not needed while ObserveMemberPathChanges is on; shown for the case
+            // where it is off and a bulk change needs pulling in.
+            Tree.RefreshSelectionFromSource();
+        }
 
         private void OnExport(object sender, RoutedEventArgs e)
         {
@@ -452,6 +691,20 @@ namespace TreeGrid.Demo
             MessageBox.Show(GridBenchmark.Format(results), "Benchmark",
                 MessageBoxButton.OK, MessageBoxImage.None);
         }
+    }
+
+    /// <summary>Minimal ICommand so demo menu items need no boilerplate.</summary>
+    public sealed class RelayCommand : System.Windows.Input.ICommand
+    {
+        private readonly Action _execute;
+
+        public RelayCommand(Action execute) => _execute = execute;
+
+        public event EventHandler CanExecuteChanged;
+
+        public bool CanExecute(object parameter) => true;
+
+        public void Execute(object parameter) => _execute?.Invoke();
     }
 
     /// <summary>Colours the salary band chip in the template column.</summary>

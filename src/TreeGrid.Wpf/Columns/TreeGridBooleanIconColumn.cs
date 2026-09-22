@@ -4,6 +4,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using TreeGrid.Wpf.View;
 
 namespace TreeGrid.Wpf.Columns
 {
@@ -289,12 +290,8 @@ namespace TreeGrid.Wpf.Columns
 
         private static Brush DefaultFalseBrush { get; } = Freeze(Color.FromRgb(0xD1, 0x24, 0x2F));
 
-        private static Brush Freeze(Color color)
-        {
-            var brush = new SolidColorBrush(color);
-            brush.Freeze();
-            return brush;
-        }
+        private static Brush Freeze(Color color) =>
+            new SolidColorBrush(color).FreezeIfPossible();
 
         /// <summary>Accepts bools, nullable bools and anything parseable, like the checkbox column.</summary>
         public static bool? ToBool(object value)

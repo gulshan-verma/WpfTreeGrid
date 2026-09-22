@@ -348,6 +348,44 @@ namespace TreeGrid.Wpf.Editing
             ClearErrors(node);
         }
 
+        /// <summary>
+        /// Writes a value to one cell outside an edit session, running the same
+        /// coercion, CellValidating event and post-write validation as a typed edit.
+        /// <para>
+        /// Bulk updates go through here so they cannot bypass rules a keyboard edit
+        /// would have to satisfy. A rejected value is rolled back and recorded against
+        /// the cell, leaving the rest of the batch unaffected.
+        /// </para>
+        /// </summary>
+        public bool TryApplyValue(TreeNode node, TreeGridColumn column, object newValue, out string error)
+        {
+            error = null;
+
+            if (node?.Item == null || column == null || string.IsNullOrEmpty(column.MappingName))
+                return false;
+
+            if (!column.AllowEditing || !column.SupportsValueCommit)
+                return false;
+
+            var oldValue = PropertyAccessor.GetValue(node.Item, column.MappingName);
+
+            if (Equals(oldValue, newValue))
+                return true;
+
+            var editable = node.Item as IEditableObject;
+            editable?.BeginEdit();
+
+            var applied = TryCommitValue(node, column, oldValue, newValue, out error);
+
+            if (applied)
+                editable?.EndEdit();
+            else
+                editable?.CancelEdit();
+
+            SetError(node, column.MappingName, applied ? null : error);
+            return applied;
+        }
+
         /// <summary>Runs row validation for a node without ending its transaction.</summary>
         public bool ValidateRow(TreeNode node, IEnumerable<string> mappingNames)
         {

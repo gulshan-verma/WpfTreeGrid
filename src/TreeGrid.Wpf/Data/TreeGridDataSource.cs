@@ -27,6 +27,7 @@ namespace TreeGrid.Wpf.Data
     {
         private readonly Dictionary<object, TreeNode> _nodeMap = new Dictionary<object, TreeNode>();
         private IEnumerable _itemsSource;
+        private int _updateDepth;
         private CancellationTokenSource _loadCts;
 
         public TreeGridDataSource()
@@ -356,8 +357,29 @@ namespace TreeGrid.Wpf.Data
         /// </summary>
         public event EventHandler IncrementalChange;
 
+        /// <summary>
+        /// Suspends reaction to source collection changes.
+        /// <para>
+        /// Used while the grid rewrites the source for a drop: each Remove and Insert
+        /// would otherwise be processed incrementally, fighting the single rebuild that
+        /// follows.
+        /// </para>
+        /// </summary>
+        public void BeginSourceUpdate() => _updateDepth++;
+
+        public void EndSourceUpdate()
+        {
+            if (_updateDepth > 0)
+                _updateDepth--;
+        }
+
+        public bool IsSourceUpdateSuspended => _updateDepth > 0;
+
         private void OnSourceCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
+            if (_updateDepth > 0)
+                return;
+
             // Self-relational sources cannot be patched incrementally: a single new row
             // can re-parent an arbitrary part of the tree, so a rebuild is the only
             // correct answer there.

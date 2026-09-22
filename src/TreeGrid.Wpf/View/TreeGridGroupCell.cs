@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Documents;
 using System.Windows.Media;
 using TreeGrid.Wpf.Grouping;
 
@@ -208,6 +209,13 @@ namespace TreeGrid.Wpf.View
         private int _dragChipIndex = -1;
         private bool _pointerDown;
         private bool _closePressed;
+        private DragPreviewAdorner _preview;
+
+        /// <summary>Accent used for the ghost outline and the drop line.</summary>
+        public Brush DropIndicatorBrush { get; set; }
+
+        /// <summary>Set false to drag chips without the floating preview.</summary>
+        public bool ShowDragPreview { get; set; } = true;
 
         public override void OnApplyTemplate()
         {
@@ -222,6 +230,78 @@ namespace TreeGrid.Wpf.View
 
             if (_chipHost != null)
                 _chipHost.ItemsSource = Descriptions;
+        }
+
+        /// <summary>X position of the drop line for an insertion index.</summary>
+        public double GetInsertX(int index)
+        {
+            if (_chipHost == null || Descriptions == null || Descriptions.Count == 0)
+                return 8;
+
+            var clamped = Math.Min(Math.Max(0, index), Descriptions.Count);
+
+            // Past the last chip, the line sits at its trailing edge.
+            if (clamped == Descriptions.Count)
+            {
+                var last = _chipHost.ItemContainerGenerator.ContainerFromIndex(Descriptions.Count - 1)
+                    as FrameworkElement;
+
+                if (last == null)
+                    return 8;
+
+                return last.TranslatePoint(new Point(0, 0), this).X + last.ActualWidth;
+            }
+
+            var container = _chipHost.ItemContainerGenerator.ContainerFromIndex(clamped) as FrameworkElement;
+
+            return container?.TranslatePoint(new Point(0, 0), this).X ?? 8;
+        }
+
+        /// <summary>Shows the drop line at a grouping index. Used by the panel and by the grid.</summary>
+        public void ShowInsertion(int index)
+        {
+            EnsurePreview(null, default);
+            _preview?.SetInsertion(GetInsertX(index), ActualHeight);
+        }
+
+        public void HideInsertion()
+        {
+            if (_preview == null)
+                return;
+
+            // Keep the adorner alive while a chip ghost is still being dragged.
+            if (_dragChipIndex >= 0 && IsMouseCaptured)
+            {
+                _preview.ClearInsertion();
+                return;
+            }
+
+            RemovePreview();
+        }
+
+        private void EnsurePreview(FrameworkElement ghostSource, Point grabOffset)
+        {
+            if (_preview != null)
+                return;
+
+            var layer = AdornerLayer.GetAdornerLayer(this);
+
+            if (layer == null)
+                return;
+
+            _preview = new DragPreviewAdorner(this, ShowDragPreview ? ghostSource : null,
+                DropIndicatorBrush) { GrabOffset = grabOffset };
+
+            layer.Add(_preview);
+        }
+
+        private void RemovePreview()
+        {
+            if (_preview == null)
+                return;
+
+            AdornerLayer.GetAdornerLayer(this)?.Remove(_preview);
+            _preview = null;
         }
 
         /// <summary>
@@ -292,9 +372,22 @@ namespace TreeGrid.Wpf.View
                 }
 
                 CaptureMouse();
+
+                var container = _chipHost?.ItemContainerGenerator
+                    .ContainerFromIndex(_dragChipIndex) as FrameworkElement;
+
+                var grab = container == null
+                    ? default
+                    : (Point)(_dragOrigin - container.TranslatePoint(new Point(0, 0), this));
+
+                RemovePreview();
+                EnsurePreview(container, grab);
             }
 
             IsDropTarget = true;
+
+            _preview?.UpdatePosition(point);
+            _preview?.SetInsertion(GetInsertX(GetInsertIndex(point)), ActualHeight);
         }
 
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
@@ -312,6 +405,8 @@ namespace TreeGrid.Wpf.View
 
             if (IsMouseCaptured)
                 ReleaseMouseCapture();
+
+            RemovePreview();
 
             var from = _dragChipIndex;
             var wasClose = _closePressed;
